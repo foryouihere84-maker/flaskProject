@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>伪装对抗 · YOLO 智能视觉平台</title>
+    <!-- Google Fonts - Inter 字体 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <!-- Font Awesome 6 (免费) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(145deg, #f6f9fc 0%, #e9f2f9 100%);
+            min-height: 100vh;
+            color: #1e293b;
+            line-height: 1.5;
+            padding: 2rem 1.5rem;
+        }
+
+        /* 快速模式开关样式 */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 30px;
+    margin: 0 10px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 30px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: #1e4a6b;
+}
+
+input:checked + .slider:before {
+    transform: translateX(30px);
+}
+
+.mode-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: rgba(30, 74, 107, 0.05);
+    border-radius: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.mode-text {
+    font-size: 0.9rem;
+    color: #475569;
+}
+
+.mode-status {
+    font-weight: 600;
+    color: #1e4a6b;
+}
+
+/* 性能警告样式 */
+.performance-warning {
+    background: rgba(255, 152, 0, 0.15);
+    border: 1px solid rgba(255, 152, 0, 0.3);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    margin: 1rem 0;
+    display: none;
+}
+
+.performance-warning.show {
+    display: block;
+}
+
+.warning-icon {
+    color: #ff9800;
+    margin-right: 0.5rem;
+}
+
+
+        /* 主容器 */
+        .adversarial-container {
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+
+        /* 导航/面包屑 */
+        .breadcrumb {
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .breadcrumb a {
+            color: #1e4a6b;
+            text-decoration: none;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: color 0.2s;
+        }
+
+        .breadcrumb a:hover {
+            color: #2c5f8a;
+        }
+
+        .breadcrumb span {
+            color: #57758c;
+        }
+
+        /* 标题区域 */
+        .page-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #0c2b3e;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-header p {
+            color: #475569;
+            font-size: 1.1rem;
+        }
+
+        /* 玻璃卡片基础样式 */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
+            margin-bottom: 2rem;
+        }
+
+        /* 表单样式 */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #1e4a6b;
+        }
+
+        .model-select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid rgba(30, 74, 107, 0.2);
+            border-radius: 0.75rem;
+            background: rgba(255, 255, 255, 0.7);
+            font-family: inherit;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .model-select:focus {
+            outline: none;
+            border-color: #1e4a6b;
+            box-shadow: 0 0 0 3px rgba(30, 74, 107, 0.1);
+        }
+
+        /* 参数滑块样式 */
+        .param-input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: rgba(30, 74, 107, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .param-input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #1e4a6b;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(30, 74, 107, 0.3);
+        }
+
+        .param-input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #1e4a6b;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(30, 74, 107, 0.3);
+        }
+
+        /* 文件上传区域 */
+        .file-upload-area {
+            border: 2px dashed rgba(30, 74, 107, 0.3);
+            border-radius: 2rem;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            background: rgba(255,255,255,0.4);
+            transition: all 0.2s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .file-upload-area:hover {
+            border-color: #1e4a6b;
+            background: rgba(255,255,255,0.7);
+        }
+
+        .file-upload-area i {
+            font-size: 3rem;
+            color: #1e4a6b;
+            margin-bottom: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .file-upload-area .upload-text {
+            font-weight: 500;
+            color: #1e4a6b;
+        }
+
+        .file-upload-area .upload-hint {
+            font-size: 0.9rem;
+            color: #57758c;
+            margin-top: 0.5rem;
+        }
+
+        /* 图片预览区域 */
+        .image-preview {
+            display: none;
+            margin-top: 1.5rem;
+            text-align: center;
+        }
+
+        .image-preview.show {
+            display: block;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 1rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            background: #f0f4f8;
+            border: 1px solid rgba(30, 74, 107, 0.1);
+        }
+
+        .preview-info {
+            margin-top: 0.8rem;
+            font-size: 0.9rem;
+            color: #475569;
+        }
+
+        /* 提交按钮 */
+        .submit-btn {
+            width: 100%;
+            padding: 1.2rem;
+            background: linear-gradient(135deg, #1e4a6b, #2c5f8a);
+            color: white;
+            border: none;
+            border-radius: 1rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.8rem;
+            margin-top: 1rem;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 25px rgba(30, 74, 107, 0.3);
+        }
+
+        .submit-btn:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .submit-btn i {
+            font-size: 1rem;
+        }
+
+        /* 加载状态 */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid rgba(30, 74, 107, 0.2);
+            border-top: 4px solid #1e4a6b;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 结果展示区域 */
+        .result-section {
+            display: none;
+        }
+
+        .result-section.show {
+            display: block;
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 1.5rem;
+        }
+
+        .image-comparison {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+        }
+
+        .comparison-title {
+            font-weight: 600;
+            color: #1e4a6b;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .result-image {
+            max-width: 100%;
+            border-radius: 1rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+            border: 2px solid rgba(30, 74, 107, 0.1);
+        }
+
+        /* 统计徽章 */
+        .stat-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin: 0.25rem;
+        }
+
+        .stat-badge.info {
+            background: rgba(33, 150, 243, 0.15);
+            color: #2196f3;
+            border: 1px solid rgba(33, 150, 243, 0.3);
+        }
+
+        .stat-badge.warning {
+            background: rgba(255, 152, 0, 0.15);
+            color: #ff9800;
+            border: 1px solid rgba(255, 152, 0, 0.3);
+        }
+
+        .image-stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            justify-content: center;
+        }
+
+        /* 参数详情 */
+        .params-details {
+            background: rgba(248, 250, 252, 0.7);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .params-details h3 {
+            color: #1e4a6b;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .param-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(30, 74, 107, 0.1);
+        }
+
+        .param-item:last-child {
+            border-bottom: none;
+        }
+
+        .param-key {
+            font-weight: 500;
+            color: #475569;
+        }
+
+        .param-value {
+            color: #1e4a6b;
+            font-weight: 600;
+        }
+
+        /* 消息提示 */
+        .flash-messages {
+            margin-bottom: 1.5rem;
+        }
+
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+
+        .alert-success {
+            background: rgba(74, 222, 128, 0.15);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            color: #166534;
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #7f1d1d;
+        }
+
+        .alert-info {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #1e3a8a;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .result-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            body {
+                padding: 1.5rem 1rem;
+            }
+
+            .glass-card {
+                padding: 1.5rem;
+            }
+
+            .page-header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="adversarial-container">
+        <!-- 面包屑导航 -->
+        <div class="breadcrumb">
+            <a href="/">
+                <i class="fas fa-home"></i> 首页
+            </a>
+            <span>/</span>
+            <span>伪装对抗</span>
+        </div>
+
+        <!-- 页面标题 -->
+        <div class="page-header">
+            <h1><i class="fas fa-shield-virus" style="margin-right: 1rem;"></i>伪装对抗</h1>
+            <p>生成物理世界对抗样本，测试模型安全性与鲁棒性</p>
+        </div>
+
+        <!-- Flash 消息 -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'error' if category == 'error' else 'info' }}">
+                            <i class="fas fa-{{ 'exclamation-circle' if category == 'error' else 'info-circle' }}"></i>
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- 上传表单 -->
+        <div class="glass-card">
+            <form id="upload-form" method="POST" enctype="multipart/form-data">
+                <!-- 攻击类型选择 (完整合并版本) -->
+                <div class="form-group">
+                    <label class="form-label" for="attack-type">
+                        <i class="fas fa-bug"></i> 对抗攻击类型
+                    </label>
+                    <select name="attack_type" id="attack-type" class="model-select" onchange="updateAttackOptions()">
+                        <!-- 自研算法 -->
+                        <option value="cam" {% if attack_type == 'cam' %}selected{% endif %}>自研 AdvCam (相机扰动)</option>
+                        <option value="shadow" {% if attack_type == 'shadow' %}selected{% endif %}>自研 AdvShadow (阴影攻击)</option>
+                        <option value="combined" {% if attack_type == 'combined' %}selected{% endif %}>自研组合攻击</option>
+                        <!-- 官方算法 -->
+                        <option value="official_shadow" {% if attack_type == 'official_shadow' %}selected{% endif %}>官方 ShadowAttack (CVPR 2022)</option>
+                        <option value="official_cam" {% if attack_type == 'official_cam' %}selected{% endif %}>官方 AdvCam (CVPR 2020)</option>
+                        <option value="official_combined" {% if attack_type == 'official_combined' %}selected{% endif %}>官方组合攻击</option>
+                    </select>
+                </div>
+
+            <!-- 快速模式切换 (新增功能) -->
+<div class="form-group" id="fast-mode-section" style="display: none;">
+    <label class="form-label">
+        <i class="fas fa-tachometer-alt"></i> 性能模式
+    </label>
+    <div class="mode-label">
+        <span class="mode-text">
+            <i class="fas fa-bolt warning-icon"></i>
+            启用快速模式可显著提升处理速度
+        </span>
+        <label class="toggle-switch">
+            <input type="checkbox" id="fast-mode-toggle" name="fast_mode" value="true">
+            <span class="slider"></span>
+        </label>
+    </div>
+    <div class="mode-status" id="mode-status">当前模式: 精确模式</div>
+</div>
+
+<!-- 性能警告提示 -->
+<div class="performance-warning" id="performance-warning">
+    <i class="fas fa-exclamation-triangle warning-icon"></i>
+    <strong>性能提示：</strong>官方算法需要较长时间计算，建议启用快速模式或使用较低强度值。
+</div>
+
+
+                <!-- AdvCam 风格选择 (仅当选择官方 AdvCam 时显示) -->
+                <div class="form-group" id="style-selection" style="display: none;">
+                    <label class="form-label" for="style-type">
+                        <i class="fas fa-palette"></i> 伪装风格
+                    </label>
+                    <select name="style_type" id="style-type" class="model-select">
+                        <option value="natural" selected>自然风格</option>
+                        <option value="rusty">锈蚀风格</option>
+                        <option value="dirty">脏污风格</option>
+                        <option value="snow">雪渍风格</option>
+                    </select>
+                </div>
+
+                <!-- 组合攻击参数设置 (仅当选择组合攻击时显示) -->
+                <div class="form-group" id="combined-params" style="display: none;">
+                    <div class="param-item">
+                        <label class="form-label">Shadow 强度</label>
+                        <input type="range" name="shadow_intensity" id="shadow-intensity" class="param-input"
+                               min="0.1" max="0.8" step="0.05" value="0.3"
+                               oninput="updateParamValue('shadow-intensity-value', this.value)">
+                        <span id="shadow-intensity-value">0.30</span>
+                    </div>
+                    <div class="param-item">
+                        <label class="form-label">CAM 强度</label>
+                        <input type="range" name="cam_intensity" id="cam-intensity" class="param-input"
+                               min="0.05" max="0.5" step="0.05" value="0.1"
+                               oninput="updateParamValue('cam-intensity-value', this.value)">
+                        <span id="cam-intensity-value">0.10</span>
+                    </div>
+                </div>
+
+                <!-- 攻击强度参数 -->
+                <div class="form-group">
+                    <label class="form-label" for="intensity" id="intensity-label">
+                        <i class="fas fa-sliders-h"></i> 噪声强度
+                    </label>
+                    <input type="range" name="intensity" id="intensity" class="param-input"
+                           min="0.01" max="0.5" step="0.01" value="{{ intensity or 0.1 }}"
+                           oninput="updateIntensityValue(this.value)">
+                    <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; color: #57758c; font-size: 0.9rem;">
+                        <span>低</span>
+                        <span id="intensity-value">{{ "%.2f"|format(intensity or 0.1) }}</span>
+                        <span>高</span>
+                    </div>
+                </div>
+
+                <!-- 文件上传区域 -->
+                <div class="form-group">
+                    <label class="form-label" for="file-input">
+                        <i class="fas fa-cloud-upload-alt"></i> 上传图片
+                    </label>
+                    <div class="file-upload-area" onclick="document.getElementById('file-input').click();">
+                        <i class="fas fa-image"></i>
+                        <div class="upload-text" id="file-name-display">点击选择或拖放图片</div>
+                        <div class="upload-hint">支持 PNG、JPG、JPEG、GIF (最大16MB)</div>
+                    </div>
+                    <input type="file" name="file" id="file-input" accept="image/*" required onchange="handleFileSelect(this)">
+                </div>
+
+                <!-- 图片预览区域 -->
+                <div class="image-preview" id="image-preview">
+                    <img id="preview-image" class="preview-image" src="" alt="图片预览">
+                    <div class="preview-info" id="preview-info"></div>
+                </div>
+
+                <!-- 提交按钮 -->
+                <button type="submit" class="submit-btn" id="submit-btn" disabled>
+                    <i class="fas fa-bolt"></i> 生成对抗样本
+                </button>
+            </form>
+
+            <!-- 加载状态 -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>正在生成对抗样本，请稍候...</p>
+            </div>
+        </div>
+
+        <!-- 结果展示 -->
+        {% if original_image and adversarial_image %}
+        <div class="result-section show">
+            <div class="glass-card">
+                <h2 style="text-align: center; margin-bottom: 2rem; color: #1e4a6b;">
+                    <i class="fas fa-shield-virus" style="margin-right: 0.8rem;"></i>对抗样本生成结果
+                </h2>
+
+                <!-- 图像对比 -->
+                <div class="result-grid">
+                    <div class="image-comparison">
+                        <div class="comparison-title">
+                            <i class="fas fa-camera"></i> 原始图像
+                        </div>
+                        <img src="/static/uploads/{{ original_image }}" alt="原始图像" class="result-image">
+                        <div class="image-stats">
+                            <span class="stat-badge info">原始输入</span>
+                        </div>
+                    </div>
+
+                    <div class="image-comparison">
+                        <div class="comparison-title">
+                            <i class="fas fa-bug"></i> 对抗样本
+                        </div>
+                        <img src="/static/results/{{ adversarial_image }}" alt="对抗样本" class="result-image">
+                        <div class="image-stats">
+                            <span class="stat-badge warning">攻击类型: {{ attack_type.upper() }}</span>
+                            <span class="stat-badge info">强度: {{ "%.2f"|format(intensity) }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 参数详情 -->
+                <div class="params-details">
+                    <h3><i class="fas fa-info-circle" style="margin-right: 0.5rem;"></i>攻击参数详情</h3>
+                    <div class="param-item">
+                        <span class="param-key">攻击类型:</span>
+                        <span class="param-value">{{ attack_type.upper() }}</span>
+                    </div>
+                    <div class="param-item">
+                        <span class="param-key">攻击强度:</span>
+                        <span class="param-value">{{ "%.2f"|format(intensity) }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 使用说明 -->
+        <div class="glass-card">
+            <h3 style="color: #1e4a6b; margin-bottom: 1rem;">
+                <i class="fas fa-question-circle" style="margin-right: 0.8rem;"></i>使用说明
+            </h3>
+            <ul style="padding-left: 1.5rem; color: #475569; line-height: 1.8;">
+                <li><strong>自研 AdvCam:</strong> 模拟相机镜头扰动，在图像边缘添加噪声贴纸</li>
+                <li><strong>自研 AdvShadow:</strong> 模拟阴影投射攻击，添加渐变阴影效果</li>
+                <li><strong>自研组合攻击:</strong> 同时应用CAM和Shadow两种物理扰动</li>
+                <li><strong>官方 ShadowAttack:</strong> 基于CVPR 2022论文的自然阴影攻击</li>
+                <li><strong>官方 AdvCam:</strong> 基于CVPR 2020论文的风格迁移伪装攻击</li>
+                <li><strong>官方组合攻击:</strong> 结合官方两种算法的高级攻击</li>
+                <li><strong>攻击强度:</strong> 控制扰动的强弱程度，值越大扰动越明显</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+
+        // 文件选择处理
+        function handleFileSelect(input) {
+            const file = input.files[0];
+            const display = document.getElementById('file-name-display');
+            const previewContainer = document.getElementById('image-preview');
+            const previewImage = document.getElementById('preview-image');
+            const previewInfo = document.getElementById('preview-info');
+            const submitBtn = document.getElementById('submit-btn');
+
+            if (file) {
+                selectedFile = file;
+                display.textContent = file.name;
+
+                // 显示预览
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImage.src = e.target.result;
+                    previewContainer.classList.add('show');
+
+                    // 显示文件信息
+                    const fileSize = (file.size / 1024 / 1024).toFixed(2);
+                    previewInfo.innerHTML = `
+                        <strong>${selectedFile.name}</strong><br>
+                        大小: ${fileSize} MB<br>
+                        类型: ${selectedFile.type || '未知'}
+                    `;
+                };
+                reader.readAsDataURL(selectedFile);
+
+                // 启用提交按钮
+                submitBtn.disabled = false;
+            } else {
+                display.textContent = '点击选择或拖放图片';
+                previewContainer.classList.remove('show');
+                submitBtn.disabled = true;
+                selectedFile = null;
+            }
+        }
+
+        // 表单提交处理
+        document.getElementById('upload-form').addEventListener('submit', function(e) {
+            const loading = document.getElementById('loading');
+            const form = document.getElementById('upload-form');
+
+            // 显示加载状态
+            loading.classList.add('show');
+            form.style.display = 'none';
+        });
+
+        // 拖拽上传支持
+        const dropArea = document.querySelector('.file-upload-area');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight() {
+            dropArea.style.borderColor = '#1e4a6b';
+            dropArea.style.backgroundColor = 'rgba(255,255,255,0.7)';
+        }
+
+        function unhighlight() {
+            dropArea.style.borderColor = 'rgba(30, 74, 107, 0.3)';
+            dropArea.style.backgroundColor = 'rgba(255,255,255,0.4)';
+        }
+
+        dropArea.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                document.getElementById('file-input').files = files;
+                handleFileSelect(document.getElementById('file-input'));
+            }
+        }
+
+        // 更新攻击选项显示
+        function updateAttackOptions() {
+            const attackType = document.getElementById('attack-type').value;
+            const styleSelection = document.getElementById('style-selection');
+            const combinedParams = document.getElementById('combined-params');
+
+            // 控制风格选择显示
+            if (attackType === 'official_cam') {
+                styleSelection.style.display = 'block';
+            } else {
+                styleSelection.style.display = 'none';
+            }
+
+            // 控制组合参数显示
+            if (attackType === 'official_combined' || attackType === 'combined') {
+                combinedParams.style.display = 'block';
+            } else {
+                combinedParams.style.display = 'none';
+            }
+
+            // 更新强度标签
+            updateIntensityLabel();
+        }
+
+        // 更新参数值显示
+        function updateParamValue(elementId, value) {
+            document.getElementById(elementId).textContent = parseFloat(value).toFixed(2);
+        }
+
+        // 更新攻击选项显示（修改现有函数）
+function updateAttackOptions() {
+    const attackType = document.getElementById('attack-type').value;
+    const fastModeSection = document.getElementById('fast-mode-section');
+    const styleSelection = document.getElementById('style-selection');
+    const combinedParams = document.getElementById('combined-params');
+    const performanceWarning = document.getElementById('performance-warning');
+
+    // 控制快速模式显示
+    if (attackType.startsWith('official_')) {
+        fastModeSection.style.display = 'block';
+        performanceWarning.classList.add('show');
+    } else {
+        fastModeSection.style.display = 'none';
+        performanceWarning.classList.remove('show');
+    }
+
+    // 其他原有逻辑保持不变...
+    // 控制风格选择显示
+    if (attackType === 'official_cam') {
+        styleSelection.style.display = 'block';
+    } else {
+        styleSelection.style.display = 'none';
+    }
+
+    // 控制组合参数显示
+    if (attackType === 'official_combined' || attackType === 'combined') {
+        combinedParams.style.display = 'block';
+    } else {
+        combinedParams.style.display = 'none';
+    }
+
+    // 更新强度标签
+    updateIntensityLabel();
+}
+
+// 快速模式切换
+function toggleFastMode() {
+    const fastModeToggle = document.getElementById('fast-mode-toggle');
+    const modeStatus = document.getElementById('mode-status');
+    const loadingHint = document.getElementById('loading-hint');
+
+    if (fastModeToggle.checked) {
+        modeStatus.innerHTML = '当前模式: <span style="color: #10b981; font-weight: 600;">快速模式</span>';
+        if (loadingHint) {
+            loadingHint.textContent = '使用快速模式，预计处理时间: 5-15秒';
+        }
+    } else {
+        modeStatus.innerHTML = '当前模式: <span style="color: #3b82f6; font-weight: 600;">精确模式</span>';
+        if (loadingHint) {
+            loadingHint.textContent = '使用精确模式，预计处理时间: 30秒-2分钟';
+        }
+    }
+}
+
+// 在初始化部分添加事件监听器
+document.getElementById('fast-mode-toggle').addEventListener('change', toggleFastMode);
+
+// 在页面加载完成后初始化
+toggleFastMode(); // 初始化模式状态
+
+
+        // 更新强度标签
+        function updateIntensityLabel() {
+            const attackType = document.getElementById('attack-type').value;
+            const label = document.getElementById('intensity-label');
+
+            if (attackType === 'cam' || attackType === 'official_cam') {
+                label.innerHTML = '<i class="fas fa-sliders-h"></i> 噪声强度';
+            } else if (attackType === 'shadow' || attackType === 'official_shadow') {
+                label.innerHTML = '<i class="fas fa-sliders-h"></i> 阴影强度';
+            } else {
+                label.innerHTML = '<i class="fas fa-sliders-h"></i> 组合强度';
+            }
+        }
+
+        // 更新强度显示值
+        function updateIntensityValue(value) {
+            document.getElementById('intensity-value').textContent = parseFloat(value).toFixed(2);
+        }
+
+        // 初始化
+        updateAttackOptions();
+        updateIntensityLabel();
+
+
+
+
+    </script>
+</body>
+</html>

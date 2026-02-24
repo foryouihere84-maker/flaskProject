@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>目标检测 · YOLO 智能视觉平台</title>
+    <!-- Google Fonts - Inter 字体 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <!-- Font Awesome 6 (免费) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(145deg, #f6f9fc 0%, #e9f2f9 100%);
+            min-height: 100vh;
+            color: #1e293b;
+            line-height: 1.5;
+            padding: 2rem 1.5rem;
+        }
+
+        /* 主容器 */
+        .detection-container {
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+
+        /* 导航/面包屑 */
+        .breadcrumb {
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .breadcrumb a {
+            color: #2c5f8a;
+            text-decoration: none;
+            font-weight: 500;
+            background: rgba(255,255,255,0.5);
+            backdrop-filter: blur(4px);
+            padding: 0.4rem 1rem;
+            border-radius: 40px;
+            border: 1px solid rgba(255,255,255,0.6);
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .breadcrumb a:hover {
+            background: rgba(255,255,255,0.9);
+            border-color: #1e4a6b;
+            color: #0c2b3e;
+        }
+
+        .breadcrumb span {
+            color: #475569;
+        }
+
+        /* 标题 */
+        .page-header {
+            margin-bottom: 3rem;
+            text-align: center;
+        }
+
+        .page-header h1 {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 700;
+            background: linear-gradient(135deg, #0f2b3d, #1b4a6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .page-header .subtitle {
+            color: #475569;
+            font-size: 1.1rem;
+            background: rgba(255,255,255,0.4);
+            backdrop-filter: blur(4px);
+            padding: 0.5rem 2rem;
+            border-radius: 60px;
+            display: inline-block;
+        }
+
+        /* 卡片通用样式 */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.02);
+            padding: 2rem;
+        }
+
+        /* 上传卡片 */
+        .upload-card {
+            margin-bottom: 2.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: #1e3b4f;
+            font-size: 1.1rem;
+        }
+
+        .form-label i {
+            margin-right: 0.5rem;
+            color: #2c5f8a;
+        }
+
+        /* 模型选择下拉框 */
+        .model-select {
+            width: 100%;
+            padding: 0.9rem 1.5rem;
+            border-radius: 60px;
+            border: 1px solid rgba(30, 74, 107, 0.2);
+            background: rgba(255,255,255,0.8);
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            color: #1e293b;
+            outline: none;
+            transition: all 0.2s;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%231e4a6b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1.5rem center;
+            background-size: 1rem;
+        }
+
+        .model-select:hover, .model-select:focus {
+            border-color: #1e4a6b;
+            background-color: white;
+            box-shadow: 0 4px 12px rgba(30,74,107,0.1);
+        }
+
+        /* 文件上传区域 */
+        .file-upload-area {
+            border: 2px dashed rgba(30, 74, 107, 0.3);
+            border-radius: 2rem;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            background: rgba(255,255,255,0.4);
+            transition: all 0.2s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .file-upload-area:hover {
+            border-color: #1e4a6b;
+            background: rgba(255,255,255,0.7);
+        }
+
+        .file-upload-area i {
+            font-size: 3rem;
+            color: #1e4a6b;
+            margin-bottom: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .file-upload-area .upload-text {
+            font-weight: 500;
+            color: #1e4a6b;
+        }
+
+        .file-upload-area .upload-hint {
+            font-size: 0.9rem;
+            color: #57758c;
+            margin-top: 0.5rem;
+        }
+
+        /* 图片预览区域 */
+        .image-preview {
+            display: none;
+            margin-top: 1.5rem;
+            text-align: center;
+        }
+
+        .image-preview.show {
+            display: block;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 1rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            background: #f0f4f8;
+            border: 1px solid rgba(30, 74, 107, 0.1);
+        }
+
+        .preview-info {
+            margin-top: 0.8rem;
+            font-size: 0.9rem;
+            color: #57758c;
+        }
+
+        /* 隐藏原始 file input，用 label 关联 */
+        #file-input {
+            display: none;
+        }
+
+        /* 提交按钮 */
+        .submit-btn {
+            background: #1e4a6b;
+            color: white;
+            border: none;
+            padding: 1rem 2.5rem;
+            border-radius: 60px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.8rem;
+            box-shadow: 0 12px 22px -8px #1e4a6b80;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            justify-content: center;
+            margin-top: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            background: #0c2b3e;
+            transform: translateY(-2px);
+            box-shadow: 0 18px 30px -10px #0c2b3e;
+        }
+
+        .submit-btn:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .submit-btn i {
+            font-size: 1rem;
+        }
+
+        /* 加载状态 */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid rgba(30, 74, 107, 0.2);
+            border-top: 4px solid #1e4a6b;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 成功提示 */
+        .success-alert {
+            background: linear-gradient(135deg, #4ade80, #22c55e);
+            color: white;
+            padding: 1.5rem 2rem;
+            border-radius: 1rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            box-shadow: 0 10px 25px rgba(34, 197, 94, 0.3);
+            animation: slideDown 0.5s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .success-alert i {
+            font-size: 1.5rem;
+        }
+
+        .success-content h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+        }
+
+        .success-content p {
+            font-size: 0.95rem;
+            opacity: 0.9;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.6);
+            backdrop-filter: blur(4px);
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.3);
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1e4a6b;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #475569;
+            font-size: 0.9rem;
+        }
+
+        /* 结果显示区域 */
+        .result-section {
+            margin-top: 2rem;
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .image-card {
+            background: rgba(255,255,255,0.5);
+            backdrop-filter: blur(4px);
+            border-radius: 1.5rem;
+            padding: 1.2rem;
+            text-align: center;
+        }
+
+        .image-card h3 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: #1e3b4f;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .image-card img {
+            max-width: 100%;
+            max-height: 350px;
+            border-radius: 1rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            background: #f0f4f8;
+        }
+
+        .no-image {
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.02);
+            border-radius: 1rem;
+            color: #57758c;
+            font-style: italic;
+        }
+
+        /* 检测表格 */
+        .table-wrapper {
+            overflow-x: auto;
+            background: rgba(255,255,255,0.4);
+            backdrop-filter: blur(4px);
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 1rem 0.5rem 0.8rem 0.5rem;
+            color: #1e4a6b;
+            font-weight: 600;
+            border-bottom: 2px solid rgba(30,74,107,0.2);
+        }
+
+        td {
+            padding: 0.8rem 0.5rem;
+            border-bottom: 1px solid rgba(30,74,107,0.1);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .badge {
+            background: rgba(30,74,107,0.1);
+            color: #1e4a6b;
+            padding: 0.2rem 0.8rem;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: inline-block;
+        }
+
+        /* 置信度条 */
+        .confidence-bar {
+            width: 100px;
+            height: 8px;
+            background: rgba(30,74,107,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            display: inline-block;
+            margin-left: 0.5rem;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ef4444, #f59e0b, #10b981);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        /* 消息提示 */
+        .info-message {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #57758c;
+            font-size: 1.1rem;
+        }
+
+        /* 响应式 */
+        @media (max-width: 700px) {
+            .result-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            body { padding: 1.5rem 1rem; }
+            .glass-card { padding: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="detection-container">
+        <!-- 面包屑导航 -->
+        <div class="breadcrumb">
+            <a href="{{ url_for('home') }}"><i class="fas fa-home"></i> 首页</a>
+            <span><i class="fas fa-chevron-right" style="font-size: 0.8rem; opacity: 0.6;"></i></span>
+            <span style="background: rgba(255,255,255,0.3); padding: 0.4rem 1rem; border-radius: 40px;"><i class="fas fa-eye"></i> 目标检测</span>
+        </div>
+
+        <!-- 页面标题 -->
+        <div class="page-header">
+            <h1><i class="fas fa-eye" style="margin-right: 0.8rem;"></i>目标检测</h1>
+            <div class="subtitle">上传图片，选择模型，自动识别并定位物体</div>
+        </div>
+
+        <!-- 上传卡片 -->
+        <div class="glass-card upload-card">
+            <form method="post" enctype="multipart/form-data" id="upload-form">
+                <!-- 模型选择 -->
+                <div class="form-group">
+                    <label class="form-label" for="model-select">
+                        <i class="fas fa-cube"></i> 选择检测模型
+                    </label>
+                    <select name="model" id="model-select" class="model-select">
+                        {% for model in models %}
+                        <option value="{{ model }}" {% if model == model_name %}selected{% endif %}>{{ model }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 文件上传区域 -->
+                <div class="form-group">
+                    <label class="form-label" for="file-input">
+                        <i class="fas fa-cloud-upload-alt"></i> 上传图片
+                    </label>
+                    <div class="file-upload-area" onclick="document.getElementById('file-input').click();">
+                        <i class="fas fa-image"></i>
+                        <div class="upload-text" id="file-name-display">点击选择或拖放图片</div>
+                        <div class="upload-hint">支持 PNG、JPG、JPEG、GIF (最大16MB)</div>
+                    </div>
+                    <input type="file" name="file" id="file-input" accept="image/*" required onchange="handleFileSelect(this)">
+                </div>
+
+                <!-- 图片预览区域 -->
+                <div class="image-preview" id="image-preview">
+                    <img id="preview-image" class="preview-image" src="" alt="图片预览">
+                    <div class="preview-info" id="preview-info"></div>
+                </div>
+
+                <!-- 提交按钮 -->
+                <button type="submit" class="submit-btn" id="submit-btn" disabled>
+                    <i class="fas fa-magic"></i> 开始检测
+                </button>
+            </form>
+
+            <!-- 加载状态 -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>正在处理图片，请稍候...</p>
+                <p style="font-size: 0.9rem; opacity: 0.7; margin-top: 0.5rem;">
+                    使用模型: <strong>{{ model_name or 'yolov8n' }}</strong>
+                </p>
+            </div>
+        </div>
+
+        <!-- 结果显示区域 (仅当有上传图片时显示) -->
+        {% if uploaded_image %}
+        <!-- 成功提示 -->
+        <div class="success-alert">
+            <i class="fas fa-check-circle"></i>
+            <div class="success-content">
+                <h3>检测完成！</h3>
+                <p>成功检测到 {{ detections|length }} 个目标，结果已保存</p>
+            </div>
+        </div>
+
+        <!-- 统计信息 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">{{ detections|length }}</div>
+                <div class="stat-label">检测目标数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ "%.1f"|format(detections|map(attribute='confidence')|sum if detections else 0) }}</div>
+                <div class="stat-label">平均置信度</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ model_name }}</div>
+                <div class="stat-label">使用模型</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ "%.2f"|format((detections|map(attribute='confidence')|sum / detections|length) if detections else 0) }}</div>
+                <div class="stat-label">最高置信度</div>
+            </div>
+        </div>
+
+        <!-- 图片对比 -->
+        <div class="result-section">
+            <div class="result-grid">
+                <div class="image-card glass-card">
+                    <h3><i class="fas fa-camera"></i> 原图</h3>
+                    <img src="{{ url_for('static', filename='uploads/' + uploaded_image) }}" alt="原图" loading="lazy">
+                </div>
+                <div class="image-card glass-card">
+                    <h3><i class="fas fa-check-circle" style="color: #2e7d32;"></i> 检测结果</h3>
+                    <img src="{{ url_for('static', filename='results/' + result_image) }}" alt="检测结果" loading="lazy">
+                </div>
+            </div>
+
+            <!-- 检测目标表格 -->
+            <div class="glass-card" style="margin-top: 1.5rem;">
+                <h3 style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-list"></i> 检测详情 ({{ detections|length }} 个目标)
+                </h3>
+                {% if detections %}
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>序号</th>
+                                <th>类别</th>
+                                <th>置信度</th>
+                                <th>边界框坐标</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for obj in detections %}
+                            <tr>
+                                <td style="font-weight: 600;">#{{ loop.index }}</td>
+                                <td><span class="badge">{{ obj.class }}</span></td>
+                                <td>
+                                    {{ "%.2f"|format(obj.confidence) }}
+                                    <div class="confidence-bar">
+                                        <div class="confidence-fill" style="width: {{ (obj.confidence * 100)|int }}%"></div>
+                                    </div>
+                                </td>
+                                <td style="font-family: monospace; font-size: 0.85rem;">
+                                    [{{ obj.bbox[0] }}, {{ obj.bbox[1] }}, {{ obj.bbox[2] }}, {{ obj.bbox[3] }}]
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="info-message">
+                    <i class="fas fa-search" style="font-size: 2rem; opacity: 0.5; margin-bottom: 0.5rem;"></i>
+                    <p>未检测到任何目标，请尝试其他图片或模型。</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 底部提示 -->
+        <div style="text-align: center; margin-top: 3rem; color: #57758c; opacity: 0.6; font-size: 0.9rem;">
+            <i class="fas fa-robot"></i> 由 YOLOv8 驱动 · 检测结果仅供参考
+        </div>
+    </div>
+
+    <!-- JavaScript 脚本 -->
+    <script>
+        let selectedFile = null;
+
+        function handleFileSelect(input) {
+            const display = document.getElementById('file-name-display');
+            const previewContainer = document.getElementById('image-preview');
+            const previewImage = document.getElementById('preview-image');
+            const previewInfo = document.getElementById('preview-info');
+            const submitBtn = document.getElementById('submit-btn');
+
+            if (input.files && input.files.length > 0) {
+                selectedFile = input.files[0];
+                display.textContent = selectedFile.name;
+
+                // 显示预览
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImage.src = e.target.result;
+                    previewContainer.classList.add('show');
+
+                    // 显示文件信息
+                    const fileSize = (selectedFile.size / 1024 / 1024).toFixed(2);
+                    previewInfo.innerHTML = `
+                        <strong>${selectedFile.name}</strong><br>
+                        大小: ${fileSize} MB<br>
+                        类型: ${selectedFile.type || '未知'}
+                    `;
+                };
+                reader.readAsDataURL(selectedFile);
+
+                // 启用提交按钮
+                submitBtn.disabled = false;
+            } else {
+                display.textContent = '点击选择或拖放图片';
+                previewContainer.classList.remove('show');
+                submitBtn.disabled = true;
+                selectedFile = null;
+            }
+        }
+
+        // 表单提交处理
+        document.getElementById('upload-form').addEventListener('submit', function(e) {
+            const loading = document.getElementById('loading');
+            const form = document.getElementById('upload-form');
+
+            // 显示加载状态
+            loading.classList.add('show');
+            form.style.display = 'none';
+        });
+
+        // 拖拽上传支持
+        const dropArea = document.querySelector('.file-upload-area');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            dropArea.style.borderColor = '#1e4a6b';
+            dropArea.style.backgroundColor = 'rgba(255,255,255,0.7)';
+        }
+
+        function unhighlight(e) {
+            dropArea.style.borderColor = 'rgba(30, 74, 107, 0.3)';
+            dropArea.style.backgroundColor = 'rgba(255,255,255,0.4)';
+        }
+
+        dropArea.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+
+            if (files.length > 0) {
+                const fileInput = document.getElementById('file-input');
+                fileInput.files = files;
+                handleFileSelect(fileInput);
+            }
+        }
+
+        // 页面加载完成后滚动到结果区域（如果有结果）
+        window.addEventListener('load', function() {
+            {% if uploaded_image %}
+            // 平滑滚动到结果区域
+            setTimeout(() => {
+                document.querySelector('.success-alert').scrollIntoView({
+                    behavior: 'smooth'
+                });
+            }, 500);
+            {% endif %}
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOLO 智能视觉平台 | 首页</title>
+    <!-- Google Fonts - 使用 Inter 字体，现代且易读 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <!-- Font Awesome 6 图标库 (免费版) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(145deg, #f6f9fc 0%, #e9f2f9 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1.5rem;
+            line-height: 1.5;
+            color: #1e293b;
+        }
+
+        /* 主容器 */
+        .home-container {
+            max-width: 1280px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* 标题区域 */
+        .hero {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 8vw, 4rem);
+            font-weight: 700;
+            background: linear-gradient(135deg, #0f2b3d, #1b4a6b, #2c5f8a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.02em;
+            margin-bottom: 1rem;
+            line-height: 1.2;
+        }
+
+        .hero .subtitle {
+            font-size: 1.25rem;
+            color: #475569;
+            max-width: 700px;
+            margin: 0 auto;
+            font-weight: 400;
+            background: rgba(255,255,255,0.5);
+            backdrop-filter: blur(4px);
+            padding: 0.75rem 2rem;
+            border-radius: 60px;
+            display: inline-block;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+        }
+
+        /* 卡片网格 */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        /* 卡片样式 - 毛玻璃效果 */
+        .feature-card {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 2rem;
+            padding: 2.5rem 1.8rem 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.02);
+            transition: all 0.25s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 35px 60px -15px rgba(0, 80, 150, 0.25), 0 0 0 2px rgba(255,255,255,0.8);
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        /* 卡片装饰性光晕 */
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.4s;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .feature-card:hover::before {
+            opacity: 0.4;
+        }
+
+        /* 图标容器 */
+        .icon-wrapper {
+            width: 90px;
+            height: 90px;
+            background: linear-gradient(145deg, #d9e9fa, #b8d9f5);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.8rem;
+            box-shadow: 0 15px 25px -8px rgba(0,100,200,0.2), inset 0 -2px 0 rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+
+        .feature-card:hover .icon-wrapper {
+            transform: scale(1.05);
+        }
+
+        .icon-wrapper i {
+            font-size: 3rem;
+            color: #1e4a6b;
+            filter: drop-shadow(0 4px 4px rgba(0,0,0,0.05));
+        }
+
+        /* 卡片标题 */
+        .feature-card h2 {
+            font-size: 1.9rem;
+            font-weight: 600;
+            margin-bottom: 0.6rem;
+            color: #0c2b3e;
+            letter-spacing: -0.01em;
+        }
+
+        /* 卡片描述 */
+        .feature-card p {
+            color: #3b4e62;
+            margin-bottom: 2rem;
+            font-size: 1rem;
+            line-height: 1.6;
+            flex-grow: 1;
+        }
+
+        /* 模型标签区域 */
+        .model-badge {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 1.8rem;
+        }
+
+        .model-tag {
+            background: rgba(30, 74, 107, 0.12);
+            backdrop-filter: blur(4px);
+            padding: 0.3rem 1rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #1e4a6b;
+            border: 1px solid rgba(30,74,107,0.15);
+            transition: all 0.2s;
+        }
+
+        .feature-card:hover .model-tag {
+            background: rgba(30, 74, 107, 0.2);
+            border-color: rgba(30,74,107,0.3);
+        }
+
+        /* 按钮 */
+        .card-btn {
+            background: white;
+            border: none;
+            padding: 0.9rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1rem;
+            color: #0c2b3e;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            box-shadow: 0 8px 18px -6px rgba(0,60,120,0.2);
+            transition: all 0.2s;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.6);
+            margin-top: 0.5rem;
+        }
+
+        .card-btn i {
+            font-size: 0.9rem;
+            transition: transform 0.2s;
+        }
+
+        .feature-card:hover .card-btn {
+            background: #1e4a6b;
+            color: white;
+            box-shadow: 0 12px 22px -8px #1e4a6b80;
+            border-color: transparent;
+        }
+
+        .feature-card:hover .card-btn i {
+            transform: translateX(4px);
+        }
+
+        /* 页脚 */
+        .footer-note {
+            text-align: center;
+            margin-top: 5rem;
+            color: #57758c;
+            font-size: 0.95rem;
+            font-weight: 400;
+            opacity: 0.7;
+        }
+
+        /* 响应式微调 */
+        @media (max-width: 600px) {
+            body { padding: 1.5rem 1rem; }
+            .hero .subtitle { font-size: 1rem; padding: 0.5rem 1.5rem; }
+            .feature-card { padding: 2rem 1.2rem; }
+            .icon-wrapper { width: 70px; height: 70px; }
+            .icon-wrapper i { font-size: 2.3rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="home-container">
+        <!-- 标题区域 -->
+        <div class="hero">
+            <h1>YOLO 智能视觉平台</h1>
+            <div class="subtitle">
+                <i class="fas fa-magic" style="margin-right: 8px;"></i> 选择一项视觉任务，体验 AI 的魔力
+            </div>
+        </div>
+
+        <!-- 功能卡片网格 -->
+        <div class="features-grid">
+            <!-- 卡片 1: 目标检测 -->
+            <div class="feature-card" onclick="location.href='/detection/';">
+                <div class="icon-wrapper">
+                    <i class="fas fa-eye"></i>
+                </div>
+                <h2>目标检测</h2>
+                <p>识别图像中的物体并定位，支持 YOLOv8 系列模型，精准绘制边界框。</p>
+                <div class="model-badge">
+                    <span class="model-tag">YOLOv8n</span>
+                    <span class="model-tag">YOLOv8s</span>
+                    <span class="model-tag">YOLOv8m</span>
+                </div>
+                <button class="card-btn">
+                    开始检测 <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- 卡片 2: 图像分类 -->
+            <div class="feature-card" onclick="location.href='/classification/';">
+                <div class="icon-wrapper">
+                    <i class="fas fa-tag"></i>
+                </div>
+                <h2>图像分类</h2>
+                <p>对整张图片进行分类，识别主要物体或场景，支持 ResNet、EfficientNet 等。</p>
+                <div class="model-badge">
+                    <span class="model-tag">ResNet50</span>
+                    <span class="model-tag">EfficientNet</span>
+                    <span class="model-tag">ViT</span>
+                </div>
+                <button class="card-btn">
+                    开始分类 <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- 卡片 3: 实例分割 -->
+            <div class="feature-card" onclick="location.href='/segmentation/';">
+                <div class="icon-wrapper">
+                    <i class="fas fa-cut"></i>
+                </div>
+                <h2>实例分割</h2>
+                <p>精确到像素级别的物体轮廓分割，使用 YOLOv8-seg 模型，输出蒙版。</p>
+                <div class="model-badge">
+                    <span class="model-tag">YOLOv8n-seg</span>
+                    <span class="model-tag">YOLOv8s-seg</span>
+                </div>
+                <button class="card-btn">
+                    开始分割 <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+            <!-- 卡片 4: 伪装对抗 -->
+            <div class="feature-card" onclick="location.href='/adversarial/';">
+                <div class="icon-wrapper">
+                    <i class="fas fa-user-secret"></i>
+                </div>
+                <h2>伪装对抗</h2>
+                <p>生成对抗样本，测试模型鲁棒性，支持 FGSM、PGD 等攻击方法。</p>
+                <div class="model-badge">
+                    <span class="model-tag">FGSM</span>
+                    <span class="model-tag">PGD</span>
+                </div>
+                <button class="card-btn">
+                    开始攻击 <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- 底部提示 -->
+        <div class="footer-note">
+            <i class="fas fa-robot" style="margin-right: 6px;"></i> 由 YOLO + Flask 驱动 · 上传图片，即刻体验
+        </div>
+    </div>
+
+    <!-- 可选：点击卡片跳转的简单脚本（已内联在 onclick 中，也可保留备用） -->
+    <!-- 无需额外脚本，onclick 已生效 -->
+</body>
+</html>
