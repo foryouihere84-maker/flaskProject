@@ -1,5 +1,6 @@
 # blueprints/adversarial.py (修改后)
 import os
+import time
 import traceback
 
 from flask import Blueprint, request, render_template, current_app, redirect, flash
@@ -7,14 +8,16 @@ from flask import jsonify
 from werkzeug.utils import secure_filename
 
 from core.model_manager import model_manager
-from core.processors.adversarial import physical_processor
+from core.processors.adversarial import physical_processor, traditional_processor
 from core.processors.detection import process_detection
 from core.processors.official_adversarial import (
     process_official_shadow_attack,
     process_official_advcam_attack,
     process_combined_official_attack
 )
+from core.processors.patch_attack import process_hybrid_adversarial
 from utils.file_utils import allowed_file, get_classification_models
+from utils.history_manager import history_manager
 
 adversarial_bp = Blueprint('adversarial', __name__, url_prefix='/adversarial')
 
@@ -39,51 +42,160 @@ def index():
             if file and allowed_file(file.filename, current_app.config['ALLOWED_EXTENSIONS']):
                 try:
                     # 保存原始文件
-                    filename = secure_filename(file.filename)
+                    from utils.file_utils import safe_filename
+                    filename = safe_filename(file.filename)
+
+                    # 添加额外的安全检查
+                    if not filename or len(filename) < 5:  # 文件名太短可能有问题
+                        filename = f"upload_{int(time.time())}{os.path.splitext(file.filename)[1].lower()}"
                     upload_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
                     file.save(upload_path)
                     print(f"Original file saved to: {upload_path}")
 
                     # 获取攻击参数
-                    attack_type = request.form.get('attack_type', 'cam')
+                    attack_mode = request.form.get('attack_mode', 'patch_only')
+                    attack_type = request.form.get('attack_type', '')
                     intensity = float(request.form.get('intensity', 0.1))
                     style_type = request.form.get('style_type', 'natural')  # 用于AdvCam风格选择
+                    
+                    # 补丁攻击参数
+                    use_patch = request.form.get('use_patch') == 'true'
+                    patch_type = request.form.get('patch_type', 'eot_optimized')
+                    patch_size = int(request.form.get('patch_size', 40))
+                    patch_position = request.form.get('patch_position', 'random')
+                    patch_shape = request.form.get('patch_shape', 'rectangle')
+                    patch_alpha = float(request.form.get('patch_alpha', 0.8))
+                    patch_color = request.form.get('patch_color', 'high_contrast')
 
+                    print(f"Attack mode: {attack_mode}")
                     print(f"Attack type: {attack_type}")
                     print(f"Intensity: {intensity}")
                     print(f"Style type: {style_type}")
+                    print(f"Use patch: {use_patch}")
 
-                    # 应用对抗攻击 - 区分官方和自研算法
-                    if attack_type == 'cam':
-                        # 自研 AdvCam
-                        adv_path, adv_image = physical_processor.adv_cam_attack(upload_path, intensity)
-                    elif attack_type == 'shadow':
-                        # 自研 AdvShadow
-                        adv_path, adv_image = physical_processor.adv_shadow_attack(upload_path, intensity)
+                    # 构建攻击配置
+                    attack_config = {
+                        'attack_mode': attack_mode,
+                        'use_patch': use_patch,
+                        'patch_params': {
+                            'patch_type': patch_type,
+                            'patch_size': patch_size,
+                            'patch_position': patch_position,
+                            'patch_shape': patch_shape,
+                            'alpha': patch_alpha,
+                            'color_preset': patch_color
+                        },
+                        'base_attack': attack_type,
+                        'base_params': {'epsilon': intensity},
+                        'model_name': request.form.get('model_name', 'resnet50')
+                    }
+                    
+                    # 根据攻击模式处理参数
+                    if attack_mode == 'patch_only':
+                        # 仅补丁攻击模式
+                        attack_config['use_patch'] = True
+                        attack_config['base_attack'] = None
+                    elif attack_mode == 'traditional_only':
+                        # 仅传统攻击模式
+                        attack_config['use_patch'] = False
+                    elif attack_mode == 'physical_only':
+                        # 仅物理攻击模式
+                        attack_config['use_patch'] = False
+                    elif attack_mode == 'hybrid':
+                        # 混合攻击模式
+                        attack_config['use_patch'] = use_patch
+                        
+                    # 如果是官方组合攻击，需要特殊处理参数
+                    if attack_type == 'official_combined':
+                        attack_config['base_params'] = {
+                            'shadow_intensity': float(request.form.get('shadow_intensity', 0.3)),
+                            'cam_intensity': float(request.form.get('cam_intensity', 0.1)),
+                            'fast_mode': request.form.get('fast_mode') == 'true'
+                        }
                     elif attack_type == 'combined':
-                        # 自研组合攻击
-                        adv_path, adv_image = physical_processor.combined_attack(upload_path, intensity, intensity*1.5)
-                    elif attack_type == 'official_shadow':
-                        # 官方 ShadowAttack
-                        fast_mode = request.form.get('fast_mode') == 'true'
-                        adv_path, adv_image = process_official_shadow_attack(upload_path, intensity)
+                        attack_config['base_params'] = {
+                            'cam_intensity': intensity,
+                            'shadow_intensity': intensity * 1.5
+                        }
                     elif attack_type == 'official_cam':
-                        # 官方 AdvCam
-                        fast_mode = request.form.get('fast_mode') == 'true'
-                        adv_path, adv_image = process_official_advcam_attack(upload_path, intensity, style_type)
-                    elif attack_type == 'official_combined':
-                        # 官方组合攻击
-                        fast_mode = request.form.get('fast_mode') == 'true'
-                        shadow_intensity = float(request.form.get('shadow_intensity', 0.3))
-                        cam_intensity = float(request.form.get('cam_intensity', 0.1))
-                        adv_path, adv_image = process_combined_official_attack(
-                            upload_path, shadow_intensity, cam_intensity
-                        )
-                    else:
-                        raise ValueError(f"Unsupported attack type: {attack_type}")
+                        attack_config['base_params']['style_type'] = style_type
+                        attack_config['base_params']['fast_mode'] = request.form.get('fast_mode') == 'true'
+                    elif attack_type == 'official_shadow':
+                        attack_config['base_params']['fast_mode'] = request.form.get('fast_mode') == 'true'
+                    
+                    print(f"Attack config: {attack_config}")
+                    
+                    # 应用对抗攻击 - 使用混合处理器
+                    try:
+                        adv_path, adv_image = process_hybrid_adversarial(upload_path, attack_config)
+                    except Exception as e:
+                        print(f"Hybrid processor error: {str(e)}")
+                        # 回退到传统处理方式
+                        if attack_mode == 'patch_only':
+                            # 单独的补丁攻击
+                            from core.processors.patch_attack import AdvancedPatchAttackProcessor
+                            patch_processor = AdvancedPatchAttackProcessor()
+                            adv_path, adv_image = patch_processor.apply_patch_attack(upload_path, attack_config['patch_params'])
+                        elif attack_mode in ['traditional_only', 'physical_only']:
+                            # 传统或物理攻击
+                            if attack_type in ['fgsm', 'fgsm_plus_plus', 'targeted_fgsm', 'universal_fgsm', 
+                                             'pgd', 'momentum_pgd', 'pgd_linf', 'pgd_l2', 'cw']:
+                                # 数字域攻击
+                                model_name = request.form.get('model_name', 'resnet50')
+                                try:
+                                    # 获取分类模型
+                                    model = model_manager.get_model('adversarial', model_name)
+                                    adv_path, adv_image = traditional_processor.generate_adversarial_example(
+                                        upload_path, model, attack_type, epsilon=intensity
+                                    )
+                                except Exception as e:
+                                    # 如果模型不可用，使用默认模型
+                                    print(f"Model {model_name} not available, using default model: {str(e)}")
+                                    model = model_manager.get_model('adversarial', 'resnet50')
+                                    adv_path, adv_image = traditional_processor.generate_adversarial_example(
+                                        upload_path, model, attack_type, epsilon=intensity
+                                    )
+                            elif attack_type in ['cam', 'shadow', 'combined', 'official_shadow', 'official_cam', 'official_combined']:
+                                # 物理域攻击
+                                if attack_type == 'cam':
+                                    adv_path, adv_image = physical_processor.adv_cam_attack(upload_path, intensity)
+                                elif attack_type == 'shadow':
+                                    adv_path, adv_image = physical_processor.adv_shadow_attack(upload_path, intensity)
+                                elif attack_type == 'combined':
+                                    adv_path, adv_image = physical_processor.combined_attack(upload_path, intensity, intensity*1.5)
+                                elif attack_type == 'official_shadow':
+                                    fast_mode = request.form.get('fast_mode') == 'true'
+                                    adv_path, adv_image = process_official_shadow_attack(upload_path, intensity)
+                                elif attack_type == 'official_cam':
+                                    fast_mode = request.form.get('fast_mode') == 'true'
+                                    adv_path, adv_image = process_official_advcam_attack(upload_path, intensity, style_type)
+                                elif attack_type == 'official_combined':
+                                    fast_mode = request.form.get('fast_mode') == 'true'
+                                    shadow_intensity = float(request.form.get('shadow_intensity', 0.3))
+                                    cam_intensity = float(request.form.get('cam_intensity', 0.1))
+                                    adv_path, adv_image = process_combined_official_attack(
+                                        upload_path, shadow_intensity, cam_intensity
+                                    )
+                            else:
+                                raise ValueError(f"Unsupported attack type: {attack_type}")
+                        else:
+                            raise e
 
                     print(f"Adversarial sample generated: {os.path.basename(adv_path)}")
 
+                    # 保存历史记录
+                    history_manager.add_record(
+                        operation_type='adversarial',
+                        original_image=filename,
+                        result_image=os.path.basename(adv_path),
+                        attack_type=attack_type,
+                        intensity=intensity,
+                        style_type=style_type if 'style_type' in locals() else None,
+                        use_patch=use_patch,
+                        patch_type=patch_type if use_patch else None,
+                        model_name=request.form.get('model_name', 'resnet50')
+                    )
+                    
                     # 返回结果页面
                     return render_template('adversarial.html',
                                          original_image=filename,
@@ -91,6 +203,9 @@ def index():
                                          attack_type=attack_type,
                                          intensity=intensity,
                                          style_type=style_type if 'style_type' in locals() else None,
+                                         use_patch=use_patch,
+                                         patch_type=patch_type,
+                                         patch_size=patch_size,
                                          models=models_available)
 
                 except Exception as e:
@@ -107,9 +222,11 @@ def index():
         # GET 请求
         return render_template('adversarial.html',
                                models=models_available,
-                               attack_type='cam',
+                               attack_mode='patch_only',
+                               attack_type='',
                                intensity=0.1,
-                               style_type='natural')
+                               style_type='natural',
+                               use_patch=False)
 
     except Exception as e:
         print(f"General error: {str(e)}")
@@ -118,9 +235,11 @@ def index():
         models_available = get_classification_models()
         return render_template('adversarial.html',
                                models=models_available,
-                               attack_type='cam',
+                               attack_mode='patch_only',
+                               attack_type='',
                                intensity=0.1,
-                               style_type='natural')
+                               style_type='natural',
+                               use_patch=False)
 
 
 # 添加新的路由用于对抗检测对比

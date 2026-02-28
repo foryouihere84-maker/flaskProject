@@ -142,6 +142,256 @@ class AdversarialAttackProcessor:
             print(traceback.format_exc())
             raise
 
+    def generate_adversarial_example(self, image_path, model, attack_method='fgsm', **kwargs):
+        """统一的数字域对抗样本生成接口"""
+        try:
+            # 1. 加载和预处理图像
+            image = Image.open(image_path).convert('RGB')
+            image_tensor = self.preprocess(image).unsqueeze(0).to(self.device)
+            
+            # 2. 根据攻击方法调用具体实现
+            if attack_method == 'fgsm':
+                perturbed_tensor = self.fgsm_attack(image_tensor, model, **kwargs)
+            elif attack_method == 'fgsm_plus_plus':
+                perturbed_tensor = self.fgsm_plus_plus(image_tensor, model, **kwargs)
+            elif attack_method == 'targeted_fgsm':
+                perturbed_tensor = self.targeted_fgsm(image_tensor, model, **kwargs)
+            elif attack_method == 'universal_fgsm':
+                perturbed_tensor = self.universal_fgsm(image_tensor, model, **kwargs)
+            elif attack_method == 'pgd':
+                perturbed_tensor = self.pgd_attack(image_tensor, model, **kwargs)
+            elif attack_method == 'momentum_pgd':
+                perturbed_tensor = self.momentum_pgd(image_tensor, model, **kwargs)
+            elif attack_method == 'pgd_linf':
+                perturbed_tensor = self.pgd_linf(image_tensor, model, **kwargs)
+            elif attack_method == 'pgd_l2':
+                perturbed_tensor = self.pgd_l2(image_tensor, model, **kwargs)
+            elif attack_method == 'cw':
+                perturbed_tensor = self.cw_attack(image_tensor, model, **kwargs)
+            else:
+                raise ValueError(f"Unsupported attack method: {attack_method}")
+            
+            # 3. 保存结果图像
+            return self._save_adversarial_image(perturbed_tensor, image_path, attack_method)
+            
+        except Exception as e:
+            print(f"Generate adversarial example error: {str(e)}")
+            raise
+
+    def _save_adversarial_image(self, tensor, original_path, attack_method):
+        """保存对抗样本图像"""
+        try:
+            # 转换tensor到numpy图像
+            image_np = tensor.squeeze().cpu().numpy()
+            image_np = np.transpose(image_np, (1, 2, 0))
+            # 反归一化
+            mean = np.array([0.485, 0.456, 0.406])
+            std = np.array([0.229, 0.224, 0.225])
+            image_np = (image_np * std + mean) * 255
+            image_np = np.clip(image_np, 0, 255).astype(np.uint8)
+            
+            # 保存图像
+            adv_filename = f'{attack_method}_{os.path.basename(original_path)}'
+            adv_path = os.path.join(current_app.config['RESULT_FOLDER'], adv_filename)
+            
+            cv2.imwrite(adv_path, cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
+            print(f"Adversarial image saved: {adv_path}")
+            return adv_path, image_np
+            
+        except Exception as e:
+            print(f"Save adversarial image error: {str(e)}")
+            raise
+
+    def fgsm_plus_plus(self, image_tensor, model, target_label=None, epsilon=0.03, steps=5):
+        """FGSM++ 多步FGSM攻击"""
+        try:
+            perturbed = image_tensor.clone()
+            step_size = epsilon / steps
+            
+            for i in range(steps):
+                perturbed.requires_grad = True
+                outputs = model(perturbed)
+                
+                if target_label is not None:
+                    loss = -nn.CrossEntropyLoss()(outputs, torch.tensor([target_label]).to(self.device))
+                else:
+                    _, predicted = torch.max(outputs.data, 1)
+                    loss = nn.CrossEntropyLoss()(outputs, predicted)
+                    
+                model.zero_grad()
+                loss.backward()
+                
+                data_grad = perturbed.grad.data.sign()
+                perturbed = perturbed + step_size * data_grad
+                perturbed = torch.clamp(perturbed, 0, 1).detach()
+            
+            return perturbed
+        except Exception as e:
+            print(f"FGSM++ attack error: {str(e)}")
+            raise
+
+    def targeted_fgsm(self, image_tensor, model, target_label, epsilon=0.03):
+        """目标导向FGSM攻击"""
+        try:
+            image_tensor.requires_grad = True
+            outputs = model(image_tensor)
+            
+            # 目标攻击：最小化目标类别的损失
+            loss = -nn.CrossEntropyLoss()(outputs, torch.tensor([target_label]).to(self.device))
+            
+            model.zero_grad()
+            loss.backward()
+            
+            data_grad = image_tensor.grad.data
+            sign_data_grad = data_grad.sign()
+            
+            perturbed_image = image_tensor - epsilon * sign_data_grad  # 注意这里是减号
+            perturbed_image = torch.clamp(perturbed_image, 0, 1)
+            
+            return perturbed_image.detach()
+        except Exception as e:
+            print(f"Targeted FGSM attack error: {str(e)}")
+            raise
+
+    def universal_fgsm(self, image_tensor, model, universal_perturbation=None, epsilon=0.03):
+        """通用扰动FGSM攻击"""
+        try:
+            if universal_perturbation is None:
+                # 生成通用扰动
+                universal_perturbation = torch.randn_like(image_tensor) * 0.01
+                universal_perturbation = torch.clamp(universal_perturbation, -epsilon, epsilon)
+            
+            image_tensor.requires_grad = True
+            perturbed_image = image_tensor + universal_perturbation
+            perturbed_image = torch.clamp(perturbed_image, 0, 1)
+            
+            outputs = model(perturbed_image)
+            _, predicted = torch.max(outputs.data, 1)
+            loss = nn.CrossEntropyLoss()(outputs, predicted)
+            
+            model.zero_grad()
+            loss.backward()
+            
+            # 更新通用扰动
+            grad_sign = image_tensor.grad.data.sign()
+            new_perturbation = universal_perturbation + epsilon * grad_sign
+            new_perturbation = torch.clamp(new_perturbation, -epsilon, epsilon)
+            
+            final_perturbed = image_tensor + new_perturbation
+            final_perturbed = torch.clamp(final_perturbed, 0, 1)
+            
+            return final_perturbed.detach()
+        except Exception as e:
+            print(f"Universal FGSM attack error: {str(e)}")
+            raise
+
+    def momentum_pgd(self, image_tensor, model, target_label=None, epsilon=0.03, alpha=0.01, iterations=10, momentum=0.9):
+        """带动量的PGD攻击"""
+        try:
+            original_image = image_tensor.clone()
+            perturbed_image = image_tensor.clone()
+            grad_accum = torch.zeros_like(image_tensor)
+            
+            for i in range(iterations):
+                perturbed_image.requires_grad = True
+                outputs = model(perturbed_image)
+                
+                if target_label is not None:
+                    loss = -nn.CrossEntropyLoss()(outputs, torch.tensor([target_label]).to(self.device))
+                else:
+                    _, predicted = torch.max(outputs.data, 1)
+                    loss = nn.CrossEntropyLoss()(outputs, predicted)
+                    
+                model.zero_grad()
+                loss.backward()
+                
+                # 动量更新
+                grad_current = perturbed_image.grad.data
+                grad_accum = momentum * grad_accum + grad_current / torch.norm(grad_current, p=1)
+                
+                perturbed_image = perturbed_image + alpha * grad_accum.sign()
+                eta = torch.clamp(perturbed_image - original_image, -epsilon, epsilon)
+                perturbed_image = original_image + eta
+                perturbed_image = torch.clamp(perturbed_image, 0, 1).detach_()
+            
+            return perturbed_image
+        except Exception as e:
+            print(f"Momentum PGD attack error: {str(e)}")
+            raise
+
+    def pgd_linf(self, image_tensor, model, target_label=None, epsilon=0.03, alpha=0.01, iterations=10):
+        """Linf范数约束的PGD攻击"""
+        try:
+            original_image = image_tensor.clone()
+            perturbed_image = image_tensor.clone() + torch.randn_like(image_tensor) * 0.01
+            perturbed_image = torch.clamp(perturbed_image, 0, 1)
+            
+            for i in range(iterations):
+                perturbed_image.requires_grad = True
+                outputs = model(perturbed_image)
+                
+                if target_label is not None:
+                    loss = -nn.CrossEntropyLoss()(outputs, torch.tensor([target_label]).to(self.device))
+                else:
+                    _, predicted = torch.max(outputs.data, 1)
+                    loss = nn.CrossEntropyLoss()(outputs, predicted)
+                
+                model.zero_grad()
+                loss.backward()
+                
+                # Linf投影
+                data_grad = perturbed_image.grad.data.sign()
+                perturbed_image = perturbed_image + alpha * data_grad
+                eta = torch.clamp(perturbed_image - original_image, -epsilon, epsilon)
+                perturbed_image = original_image + eta
+                perturbed_image = torch.clamp(perturbed_image, 0, 1).detach_()
+            
+            return perturbed_image
+        except Exception as e:
+            print(f"PGD Linf attack error: {str(e)}")
+            raise
+
+    def pgd_l2(self, image_tensor, model, target_label=None, epsilon=0.03, alpha=0.01, iterations=10):
+        """L2范数约束的PGD攻击"""
+        try:
+            original_image = image_tensor.clone()
+            perturbed_image = image_tensor.clone() + torch.randn_like(image_tensor) * 0.01
+            perturbed_image = torch.clamp(perturbed_image, 0, 1)
+            
+            for i in range(iterations):
+                perturbed_image.requires_grad = True
+                outputs = model(perturbed_image)
+                
+                if target_label is not None:
+                    loss = -nn.CrossEntropyLoss()(outputs, torch.tensor([target_label]).to(self.device))
+                else:
+                    _, predicted = torch.max(outputs.data, 1)
+                    loss = nn.CrossEntropyLoss()(outputs, predicted)
+                
+                model.zero_grad()
+                loss.backward()
+                
+                # L2投影
+                data_grad = perturbed_image.grad.data
+                grad_norm = torch.norm(data_grad, p=2)
+                normalized_grad = data_grad / (grad_norm + 1e-12)
+                
+                perturbed_image = perturbed_image + alpha * normalized_grad
+                
+                # L2球投影
+                delta = perturbed_image - original_image
+                delta_norm = torch.norm(delta, p=2)
+                factor = torch.min(torch.tensor(1.0), epsilon / (delta_norm + 1e-12))
+                delta = delta * factor
+                
+                perturbed_image = original_image + delta
+                perturbed_image = torch.clamp(perturbed_image, 0, 1).detach_()
+            
+            return perturbed_image
+        except Exception as e:
+            print(f"PGD L2 attack error: {str(e)}")
+            raise
+
 
 class AdvCamShadowProcessor:
     """AdvCam和AdvShadow物理世界对抗攻击处理器"""

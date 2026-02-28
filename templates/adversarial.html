@@ -551,20 +551,49 @@
         <!-- 上传表单 -->
         <div class="glass-card">
             <form id="upload-form" method="POST" enctype="multipart/form-data">
-                <!-- 攻击类型选择 (完整合并版本) -->
+                <!-- 攻击模式选择 -->
                 <div class="form-group">
+                    <label class="form-label" for="attack-mode">
+                        <i class="fas fa-project-diagram"></i> 攻击模式
+                    </label>
+                    <select name="attack_mode" id="attack-mode" class="model-select" onchange="updateAttackMode()">
+                        <option value="patch_only">仅补丁攻击</option>
+                        <option value="traditional_only">仅传统攻击</option>
+                        <option value="physical_only">仅物理攻击</option>
+                        <option value="hybrid">混合攻击 (补丁+基础攻击)</option>
+                    </select>
+                    <div style="margin-top: 0.5rem; font-size: 0.85rem; color: #64748b;">
+                        <i class="fas fa-info-circle"></i> 选择攻击模式：可以单独进行补丁攻击，也可以与其他攻击结合
+                    </div>
+                </div>
+
+                <!-- 攻击类型选择 (根据模式动态显示) -->
+                <div class="form-group" id="attack-type-section" style="display: none;">
                     <label class="form-label" for="attack-type">
-                        <i class="fas fa-bug"></i> 对抗攻击类型
+                        <i class="fas fa-bug"></i> 基础攻击类型
                     </label>
                     <select name="attack_type" id="attack-type" class="model-select" onchange="updateAttackOptions()">
-                        <!-- 自研算法 -->
-                        <option value="cam" {% if attack_type == 'cam' %}selected{% endif %}>自研 AdvCam (相机扰动)</option>
-                        <option value="shadow" {% if attack_type == 'shadow' %}selected{% endif %}>自研 AdvShadow (阴影攻击)</option>
-                        <option value="combined" {% if attack_type == 'combined' %}selected{% endif %}>自研组合攻击</option>
-                        <!-- 官方算法 -->
-                        <option value="official_shadow" {% if attack_type == 'official_shadow' %}selected{% endif %}>官方 ShadowAttack (CVPR 2022)</option>
-                        <option value="official_cam" {% if attack_type == 'official_cam' %}selected{% endif %}>官方 AdvCam (CVPR 2020)</option>
-                        <option value="official_combined" {% if attack_type == 'official_combined' %}selected{% endif %}>官方组合攻击</option>
+                        <!-- 数字域攻击算法 -->
+                        <optgroup label="数字域攻击 (需要深度学习模型)">
+                            <option value="fgsm" {% if attack_type == 'fgsm' %}selected{% endif %}>FGSM (快速梯度符号法)</option>
+                            <option value="fgsm_plus_plus" {% if attack_type == 'fgsm_plus_plus' %}selected{% endif %}>FGSM++ (多步FGSM)</option>
+                            <option value="targeted_fgsm" {% if attack_type == 'targeted_fgsm' %}selected{% endif %}>Targeted-FGSM (目标导向FGSM)</option>
+                            <option value="universal_fgsm" {% if attack_type == 'universal_fgsm' %}selected{% endif %}>Universal-FGSM (通用扰动FGSM)</option>
+                            <option value="pgd" {% if attack_type == 'pgd' %}selected{% endif %}>PGD (投影梯度下降)</option>
+                            <option value="momentum_pgd" {% if attack_type == 'momentum_pgd' %}selected{% endif %}>Momentum-PGD (带动量PGD)</option>
+                            <option value="pgd_linf" {% if attack_type == 'pgd_linf' %}selected{% endif %}>PGD-Linf (Linf范数PGD)</option>
+                            <option value="pgd_l2" {% if attack_type == 'pgd_l2' %}selected{% endif %}>PGD-L2 (L2范数PGD)</option>
+                            <option value="cw" {% if attack_type == 'cw' %}selected{% endif %}>CW (Carlini&Wagner L2)</option>
+                        </optgroup>
+                        <!-- 物理域攻击算法 -->
+                        <optgroup label="物理域攻击 (直接图像处理)">
+                            <option value="cam" {% if attack_type == 'cam' %}selected{% endif %}>自研 AdvCam (相机扰动)</option>
+                            <option value="shadow" {% if attack_type == 'shadow' %}selected{% endif %}>自研 AdvShadow (阴影攻击)</option>
+                            <option value="combined" {% if attack_type == 'combined' %}selected{% endif %}>自研组合攻击</option>
+                            <option value="official_shadow" {% if attack_type == 'official_shadow' %}selected{% endif %}>官方 ShadowAttack (CVPR 2022)</option>
+                            <option value="official_cam" {% if attack_type == 'official_cam' %}selected{% endif %}>官方 AdvCam (CVPR 2020)</option>
+                            <option value="official_combined" {% if attack_type == 'official_combined' %}selected{% endif %}>官方组合攻击</option>
+                        </optgroup>
                     </select>
                 </div>
 
@@ -590,6 +619,21 @@
                 <div class="performance-warning" id="performance-warning">
                     <i class="fas fa-exclamation-triangle warning-icon"></i>
                     <strong>性能提示：</strong>官方算法需要较长时间计算，建议启用快速模式或使用较低强度值。
+                </div>
+
+                <!-- 数字域攻击模型选择 (仅当选择数字域攻击时显示) -->
+                <div class="form-group" id="model-selection" style="display: none;">
+                    <label class="form-label" for="model-name">
+                        <i class="fas fa-brain"></i> 深度学习模型
+                    </label>
+                    <select name="model_name" id="model-name" class="model-select">
+                        {% for model in get_adversarial_models() %}
+                        <option value="{{ model }}">{{ model }}</option>
+                        {% endfor %}
+                    </select>
+                    <div style="margin-top: 0.5rem; font-size: 0.85rem; color: #64748b;">
+                        <i class="fas fa-info-circle"></i> 选择用于生成对抗样本的预训练模型
+                    </div>
                 </div>
 
                 <!-- AdvCam 风格选择 (仅当选择官方 AdvCam 时显示) -->
@@ -623,10 +667,133 @@
                     </div>
                 </div>
 
-                <!-- 攻击强度参数 -->
-                <div class="form-group">
+                <!-- 补丁攻击开关 (仅在混合模式下显示) -->
+                <div class="form-group" id="patch-enhance-section" style="display: none;">
+                    <label class="form-label">
+                        <i class="fas fa-sticky-note"></i> 补丁攻击增强
+                    </label>
+                    <div class="mode-label">
+
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="patch-toggle" name="use_patch" value="true"
+                                   {% if use_patch %}checked{% endif %}>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 补丁参数配置区域 -->
+                <div class="form-group" id="patch-params-section" style="display: none; background: rgba(248, 250, 252, 0.7); border-radius: 1rem; padding: 1.5rem; margin-top: 1rem;">
+                    <h4 style="color: #1e4a6b; margin-bottom: 1rem;">
+                        <i class="fas fa-cog" style="margin-right: 0.5rem;"></i>补丁攻击参数
+                    </h4>
+                    
+                    <div class="param-item">
+                        <label class="form-label">补丁类型</label>
+                        <select name="patch_type" id="patch-type" class="model-select" onchange="updatePatchTypeDescription(this.value)">
+                            <option value="eot_optimized" selected>EoT优化补丁 (推荐)</option>
+                            <option value="rp2_style">RP2风格补丁</option>
+                            <option value="dapatch">可变形补丁 (DAPatch)</option>
+                            <option value="physpatch">物理可实现补丁 (PhysPatch)</option>
+                            <option value="random">随机补丁 (传统)</option>
+                            <option value="structured">结构化补丁 (传统)</option>
+                            <option value="invisible">不可见补丁 (传统)</option>
+                        </select>
+                        <div class="form-text" id="patch-type-description" style="margin-top: 0.5rem; color: #57758c; font-size: 0.9rem;">
+                            EoT优化补丁基于期望变换框架，具有最强的鲁棒性和迁移性
+                        </div>
+                    </div>
+                    
+                    <div class="param-item">
+                        <label class="form-label">补丁大小</label>
+                        <input type="range" name="patch_size" id="patch-size" class="param-input"
+                               min="10" max="100" step="5" value="40"
+                               oninput="updateParamValue('patch-size-value', this.value)">
+                        <span id="patch-size-value">40</span>
+                    </div>
+                    
+                    <div class="param-item">
+                        <label class="form-label">补丁位置</label>
+                        <select name="patch_position" id="patch-position" class="model-select">
+                            <option value="random" selected>随机位置</option>
+                            <option value="center">中心位置</option>
+                            <option value="corners">角落位置</option>
+                        </select>
+                    </div>
+                    
+                    <div class="param-item">
+                        <label class="form-label">补丁形状</label>
+                        <select name="patch_shape" id="patch-shape" class="model-select">
+                            <option value="rectangle" selected>矩形</option>
+                            <option value="circle">圆形</option>
+                            <option value="custom">三角形</option>
+                        </select>
+                    </div>
+                    
+                    <div class="param-item">
+                        <label class="form-label">攻击强度</label>
+                        <input type="range" name="attack_strength" id="attack-strength" class="param-input"
+                               min="0.1" max="1.0" step="0.1" value="0.8"
+                               oninput="updateParamValue('attack-strength-value', this.value)">
+                        <span id="attack-strength-value">0.80</span>
+                    </div>
+                    
+                    <div class="param-item">
+                        <label class="form-label">优化步数</label>
+                        <input type="range" name="optimization_steps" id="optimization-steps" class="param-input"
+                               min="50" max="500" step="50" value="100"
+                               oninput="updateParamValue('optimization-steps-value', this.value)">
+                        <span id="optimization-steps-value">100</span>
+                    </div>
+                    
+                    <div class="param-item">
+                        <label class="form-label">目标类别 (可选)</label>
+                        <input type="number" name="target_class" id="target-class" class="model-select"
+                               placeholder="输入目标类别编号" min="0">
+                        <div class="form-text" style="margin-top: 0.5rem; color: #57758c; font-size: 0.9rem;">
+                            留空表示无目标攻击，填写数字表示目标攻击
+                        </div>
+                    </div>
+                    
+                    <div class="param-item">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="use-eot" name="use_eot" checked>
+                            <label class="form-check-label" for="use-eot" style="color: #1e4a6b; font-weight: 500;">
+                                启用EoT框架 (增强鲁棒性)
+                            </label>
+                        </div>
+                        <div class="form-text" style="margin-top: 0.5rem; color: #57758c; font-size: 0.9rem;">
+                            EoT框架使补丁在各种变换下保持攻击效果
+                        </div>
+                    </div>
+                    
+                    <!-- 传统参数 (仅在选择传统方法时显示) -->
+                    <div id="legacy-patch-params" style="display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(30, 74, 107, 0.2);">
+                        <h5 style="color: #1e4a6b; margin-bottom: 1rem;">传统参数配置</h5>
+                        
+                        <div class="param-item">
+                            <label class="form-label">补丁透明度</label>
+                            <input type="range" name="patch_alpha" id="patch-alpha" class="param-input"
+                                   min="0.1" max="1.0" step="0.1" value="0.8"
+                                   oninput="updateParamValue('patch-alpha-value', this.value)">
+                            <span id="patch-alpha-value">0.80</span>
+                        </div>
+                    </div>
+                    
+                    <div class="param-item">
+                        <label class="form-label">颜色风格</label>
+                        <select name="patch_color" id="patch-color" class="model-select">
+                            <option value="natural">自然风格</option>
+                            <option value="high_contrast" selected>高对比度</option>
+                            <option value="noise">噪声风格</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 攻击强度参数 (根据模式动态显示) -->
+                <div class="form-group" id="intensity-section" style="display: none;">
                     <label class="form-label" for="intensity" id="intensity-label">
-                        <i class="fas fa-sliders-h"></i> 噪声强度
+                        <i class="fas fa-sliders-h"></i> 攻击强度
                     </label>
                     <input type="range" name="intensity" id="intensity" class="param-input"
                            min="0.01" max="0.5" step="0.01" value="{{ intensity or 0.1 }}"
@@ -753,6 +920,9 @@
                 <i class="fas fa-question-circle" style="margin-right: 0.8rem;"></i>使用说明
             </h3>
             <ul style="padding-left: 1.5rem; color: #475569; line-height: 1.8;">
+                <li><strong>FGSM系列:</strong> 快速梯度符号法及其变种，适合快速生成对抗样本</li>
+                <li><strong>PGD系列:</strong> 投影梯度下降及其改进版本，攻击效果更强但计算量较大</li>
+                <li><strong>CW攻击:</strong> Carlini&Wagner L2攻击，最先进的白盒攻击方法之一</li>
                 <li><strong>自研 AdvCam:</strong> 模拟相机镜头扰动，在图像边缘添加噪声贴纸</li>
                 <li><strong>自研 AdvShadow:</strong> 模拟阴影投射攻击，添加渐变阴影效果</li>
                 <li><strong>自研组合攻击:</strong> 同时应用CAM和Shadow两种物理扰动</li>
@@ -760,12 +930,122 @@
                 <li><strong>官方 AdvCam:</strong> 基于CVPR 2020论文的风格迁移伪装攻击</li>
                 <li><strong>官方组合攻击:</strong> 结合官方两种算法的高级攻击</li>
                 <li><strong>攻击强度:</strong> 控制扰动的强弱程度，值越大扰动越明显</li>
+                <li><strong>注意:</strong> 数字域攻击需要选择深度学习模型，物理域攻击直接处理图像</li>
             </ul>
         </div>
     </div>
 
     <script>
         let selectedFile = null;
+
+        // 攻击模式更新逻辑
+        function updateAttackMode() {
+            const attackMode = document.getElementById('attack-mode').value;
+            const attackTypeSection = document.getElementById('attack-type-section');
+            const patchEnhanceSection = document.getElementById('patch-enhance-section');
+            const modelSelection = document.getElementById('model-selection');
+            const combinedParams = document.getElementById('combined-params');
+            const intensitySection = document.getElementById('intensity-section');
+            
+            console.log('updateAttackMode called:', attackMode);
+            
+            // 根据模式显示/隐藏相应组件
+            if (attackMode === 'patch_only') {
+                // 仅补丁攻击 - 隐藏基础攻击类型和模型选择
+                attackTypeSection.style.display = 'none';
+                patchEnhanceSection.style.display = 'none';
+                modelSelection.style.display = 'none';
+                document.getElementById('patch-params-section').style.display = 'block';
+                // 隐藏组合参数
+                console.log('Hiding combined params in patch_only mode');
+                combinedParams.style.display = 'none';
+                // 隐藏强度参数
+                console.log('Hiding intensity params in patch_only mode');
+                intensitySection.style.display = 'none';
+            } else if (attackMode === 'traditional_only') {
+                // 仅传统攻击 - 显示传统攻击类型和模型
+                attackTypeSection.style.display = 'block';
+                patchEnhanceSection.style.display = 'none';
+                modelSelection.style.display = 'block';
+                document.getElementById('patch-params-section').style.display = 'none';
+                // 隐藏组合参数
+                console.log('Hiding combined params in traditional_only mode');
+                combinedParams.style.display = 'none';
+                // 显示强度参数
+                console.log('Showing intensity params in traditional_only mode');
+                intensitySection.style.display = 'block';
+                // 设置攻击类型为传统攻击选项
+                updateAttackTypeOptions('traditional');
+            } else if (attackMode === 'physical_only') {
+                // 仅物理攻击 - 显示物理攻击类型
+                attackTypeSection.style.display = 'block';
+                patchEnhanceSection.style.display = 'none';
+                modelSelection.style.display = 'none';
+                document.getElementById('patch-params-section').style.display = 'none';
+                // 隐藏组合参数
+                console.log('Hiding combined params in physical_only mode');
+                combinedParams.style.display = 'none';
+                // 显示强度参数
+                console.log('Showing intensity params in physical_only mode');
+                intensitySection.style.display = 'block';
+                // 设置攻击类型为物理攻击选项
+                updateAttackTypeOptions('physical');
+            } else if (attackMode === 'hybrid') {
+                // 混合攻击 - 显示所有选项
+                attackTypeSection.style.display = 'block';
+                patchEnhanceSection.style.display = 'block';
+                modelSelection.style.display = 'block';
+                document.getElementById('patch-params-section').style.display = 'block';
+                // 组合参数由updateAttackOptions()根据具体攻击类型控制
+                console.log('Hybrid mode - combined params controlled by attack type');
+                // 显示强度参数
+                console.log('Showing intensity params in hybrid mode');
+                intensitySection.style.display = 'block';
+                // 设置攻击类型为全部选项
+                updateAttackTypeOptions('all');
+            }
+            
+            // 更新攻击选项和强度标签
+            updateAttackOptions();
+            updateIntensityLabel();
+        }
+
+        // 更新攻击类型选项
+        function updateAttackTypeOptions(mode) {
+            const attackTypeSelect = document.getElementById('attack-type');
+            attackTypeSelect.innerHTML = '';
+            
+            if (mode === 'traditional' || mode === 'all') {
+                const traditionalGroup = document.createElement('optgroup');
+                traditionalGroup.label = '数字域攻击 (需要深度学习模型)';
+                traditionalGroup.innerHTML = `
+                    <option value="fgsm">FGSM (快速梯度符号法)</option>
+                    <option value="fgsm_plus_plus">FGSM++ (多步FGSM)</option>
+                    <option value="targeted_fgsm">Targeted-FGSM (目标导向FGSM)</option>
+                    <option value="universal_fgsm">Universal-FGSM (通用扰动FGSM)</option>
+                    <option value="pgd">PGD (投影梯度下降)</option>
+                    <option value="momentum_pgd">Momentum-PGD (带动量PGD)</option>
+                    <option value="pgd_linf">PGD-Linf (Linf范数PGD)</option>
+                    <option value="pgd_l2">PGD-L2 (L2范数PGD)</option>
+                    <option value="cw">CW (Carlini&Wagner L2)</option>
+                `;
+                attackTypeSelect.appendChild(traditionalGroup);
+            }
+            
+            if (mode === 'physical' || mode === 'all') {
+                const physicalGroup = document.createElement('optgroup');
+                physicalGroup.label = '物理域攻击 (直接图像处理)';
+                physicalGroup.innerHTML = `
+                    <option value="cam">自研 AdvCam (相机扰动)</option>
+                    <option value="shadow">自研 AdvShadow (阴影攻击)</option>
+                    <option value="combined">自研组合攻击</option>
+                    <option value="official_shadow">官方 ShadowAttack (CVPR 2022)</option>
+                    <option value="official_cam">官方 AdvCam (CVPR 2020)</option>
+                    <option value="official_combined">官方组合攻击</option>
+                `;
+                attackTypeSelect.appendChild(physicalGroup);
+            }
+        }
 
         // 文件选择处理
         function handleFileSelect(input) {
@@ -808,12 +1088,52 @@
 
         // 表单提交处理
         document.getElementById('upload-form').addEventListener('submit', function(e) {
+            const attackMode = document.getElementById('attack-mode').value;
+            const attackType = document.getElementById('attack-type').value;
+            const usePatch = document.getElementById('patch-toggle').checked;
+            
+            // 验证必填字段
+            // 仅补丁攻击模式下不需要选择攻击类型
+            if (attackMode !== 'patch_only' && !attackType) {
+                e.preventDefault();
+                alert('请选择基础攻击类型');
+                return;
+            }
+            
+            // 数字域攻击必须选择模型
+            const digitalAttacks = ['fgsm', 'fgsm_plus_plus', 'targeted_fgsm', 'universal_fgsm', 
+                                  'pgd', 'momentum_pgd', 'pgd_linf', 'pgd_l2', 'cw'];
+            if (attackMode !== 'patch_only' && digitalAttacks.includes(attackType)) {
+                const modelName = document.getElementById('model-name').value;
+                if (!modelName) {
+                    e.preventDefault();
+                    alert('请选择深度学习模型');
+                    return;
+                }
+            }
+            
+            if (attackMode === 'hybrid' && !usePatch) {
+                e.preventDefault();
+                alert('混合模式下必须启用补丁攻击增强');
+                return;
+            }
+            
             const loading = document.getElementById('loading');
             const form = document.getElementById('upload-form');
 
             // 显示加载状态
             loading.classList.add('show');
             form.style.display = 'none';
+        });
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化攻击模式
+            updateAttackMode();
+            
+            // 设置默认攻击模式为仅补丁攻击
+            document.getElementById('attack-mode').value = 'patch_only';
+            updateAttackMode();
         });
 
         // 拖拽上传支持
@@ -857,13 +1177,65 @@
             }
         }
 
+        // 补丁攻击开关控制
+        function togglePatchParams() {
+            const patchToggle = document.getElementById('patch-toggle');
+            const patchSection = document.getElementById('patch-params-section');
+            
+            if (patchToggle.checked) {
+                patchSection.style.display = 'block';
+            } else {
+                patchSection.style.display = 'none';
+            }
+        }
+        
+        // 更新补丁类型描述
+        function updatePatchTypeDescription(patchType) {
+            const descriptionElement = document.getElementById('patch-type-description');
+            const legacyParams = document.getElementById('legacy-patch-params');
+            
+            const descriptions = {
+                'eot_optimized': 'EoT优化补丁基于期望变换框架，具有最强的鲁棒性和迁移性',
+                'rp2_style': 'RP2风格补丁采用鲁棒物理扰动方法，适合交通标志攻击',
+                'dapatch': '可变形补丁(DAPatch)通过形状优化提升攻击效果',
+                'physpatch': '物理可实现补丁(PhysPatch)考虑打印约束，更贴近实际应用',
+                'random': '随机补丁是最基础的传统方法',
+                'structured': '结构化补丁模拟特定图案',
+                'invisible': '不可见补丁添加微小扰动'
+            };
+            
+            descriptionElement.textContent = descriptions[patchType] || '';
+            
+            // 控制传统参数显示
+            const traditionalTypes = ['random', 'structured', 'invisible'];
+            if (traditionalTypes.includes(patchType)) {
+                legacyParams.style.display = 'block';
+            } else {
+                legacyParams.style.display = 'none';
+            }
+        }
+
         // 统一的攻击选项更新函数
         function updateAttackOptions() {
             const attackType = document.getElementById('attack-type').value;
+            const attackMode = document.getElementById('attack-mode').value;
             const fastModeSection = document.getElementById('fast-mode-section');
+            const modelSelection = document.getElementById('model-selection');
             const styleSelection = document.getElementById('style-selection');
             const combinedParams = document.getElementById('combined-params');
             const performanceWarning = document.getElementById('performance-warning');
+
+            console.log('updateAttackOptions called:', { attackType, attackMode });
+
+            // 控制数字域攻击模型选择显示
+            // 只在非补丁攻击模式且选择了数字域攻击时显示
+            const digitalAttacks = ['fgsm', 'fgsm_plus_plus', 'targeted_fgsm', 'universal_fgsm', 
+                                  'pgd', 'momentum_pgd', 'pgd_linf', 'pgd_l2', 'cw'];
+            if (attackMode !== 'patch_only' && digitalAttacks.includes(attackType)) {
+                modelSelection.style.display = 'block';
+            } else {
+                modelSelection.style.display = 'none';
+            }
 
             // 控制快速模式显示
             if (attackType.startsWith('official_')) {
@@ -881,10 +1253,16 @@
                 styleSelection.style.display = 'none';
             }
 
-            // 控制组合参数显示
-            if (attackType === 'official_combined' || attackType === 'combined') {
+            // 控制组合参数显示 - 只在选择了组合攻击类型时显示
+            // 特别处理：在patch_only模式下强制隐藏
+            if (attackMode === 'patch_only') {
+                console.log('Patch only mode - hiding combined params');
+                combinedParams.style.display = 'none';
+            } else if (attackType === 'official_combined' || attackType === 'combined') {
+                console.log('Combined attack selected - showing combined params');
                 combinedParams.style.display = 'block';
             } else {
+                console.log('Non-combined attack - hiding combined params');
                 combinedParams.style.display = 'none';
             }
 
@@ -912,14 +1290,23 @@
         // 更新强度标签
         function updateIntensityLabel() {
             const attackType = document.getElementById('attack-type').value;
+            const attackMode = document.getElementById('attack-mode').value;
             const label = document.getElementById('intensity-label');
 
-            if (attackType === 'cam' || attackType === 'official_cam') {
-                label.innerHTML = '<i class="fas fa-sliders-h"></i> 噪声强度';
-            } else if (attackType === 'shadow' || attackType === 'official_shadow') {
-                label.innerHTML = '<i class="fas fa-sliders-h"></i> 阴影强度';
-            } else {
-                label.innerHTML = '<i class="fas fa-sliders-h"></i> 组合强度';
+            console.log('updateIntensityLabel called:', { attackType, attackMode });
+
+            // 只有在非补丁攻击模式下才更新标签
+            if (attackMode !== 'patch_only') {
+                if (attackType === 'cam' || attackType === 'official_cam') {
+                    label.innerHTML = '<i class="fas fa-sliders-h"></i> 噪声强度';
+                } else if (attackType === 'shadow' || attackType === 'official_shadow') {
+                    label.innerHTML = '<i class="fas fa-sliders-h"></i> 阴影强度';
+                } else if (attackType === 'official_combined' || attackType === 'combined') {
+                    label.innerHTML = '<i class="fas fa-sliders-h"></i> 组合强度';
+                } else {
+                    // 默认标签
+                    label.innerHTML = '<i class="fas fa-sliders-h"></i> 攻击强度';
+                }
             }
         }
 
@@ -932,7 +1319,13 @@
         updateAttackOptions();
         updateIntensityLabel();
         document.getElementById('fast-mode-toggle').addEventListener('change', toggleFastMode);
+        document.getElementById('patch-toggle').addEventListener('change', togglePatchParams);
+        document.getElementById('patch-type').addEventListener('change', function() {
+            updatePatchTypeDescription(this.value);
+        });
         toggleFastMode();
+        togglePatchParams();
+        updatePatchTypeDescription('eot_optimized');
 
         // 检测对比功能
         document.addEventListener('DOMContentLoaded', function() {

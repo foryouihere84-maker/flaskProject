@@ -3,6 +3,7 @@ from werkzeug.utils import secure_filename
 from core.model_manager import model_manager
 from core.processors.detection import process_detection
 from utils.file_utils import allowed_file, get_detection_models
+from utils.history_manager import history_manager
 import os
 import traceback
 
@@ -33,7 +34,12 @@ def index():
             if file and allowed_file(file.filename, current_app.config['ALLOWED_EXTENSIONS']):
                 try:
                     # 保存文件
-                    filename = secure_filename(file.filename)
+                    from utils.file_utils import safe_filename
+                    filename = safe_filename(file.filename)
+
+                    # 添加额外的安全检查
+                    if not filename or len(filename) < 5:  # 文件名太短可能有问题
+                        filename = f"upload_{int(time.time())}{os.path.splitext(file.filename)[1].lower()}"
                     upload_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
                     file.save(upload_path)
                     print(f"File saved to: {upload_path}")
@@ -52,6 +58,15 @@ def index():
                     detections, result_filename = process_detection(upload_path, model)
                     print(f"Detection completed. Found {len(detections)} objects.")
 
+                    # 保存历史记录
+                    history_manager.add_record(
+                        operation_type='detection',
+                        original_image=filename,
+                        result_image=result_filename,
+                        model_name=model_name,
+                        detection_count=len(detections)
+                    )
+                    
                     # 检测完成后仍然传递模型列表数据
                     return render_template('detection.html',
                                            uploaded_image=filename,

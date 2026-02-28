@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>历史记录</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(145deg, #f6f9fc 0%, #e9f2f9 100%);
+            min-height: 100vh;
+            padding: 2rem 1.5rem;
+            color: #1e293b;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 头部 */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid rgba(30, 74, 107, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #0f2b3d, #1b4a6b, #2c5f8a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .back-btn {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50px;
+            padding: 0.8rem 1.5rem;
+            font-weight: 600;
+            color: #0c2b3e;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            box-shadow: 0 8px 18px -6px rgba(0,60,120,0.2);
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: rgba(30, 74, 107, 0.9);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 12px 22px -8px rgba(30, 74, 107, 0.4);
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: #1e4a6b;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            color: #475569;
+            font-weight: 500;
+        }
+
+        /* 记录列表 */
+        .records-container {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.15);
+        }
+
+        .records-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .records-header h2 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #0c2b3e;
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 0.5rem;
+            background: rgba(30, 74, 107, 0.05);
+            padding: 0.3rem;
+            border-radius: 50px;
+        }
+
+        .filter-tab {
+            padding: 0.5rem 1.2rem;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            background: transparent;
+            color: #475569;
+        }
+
+        .filter-tab.active {
+            background: #1e4a6b;
+            color: white;
+            box-shadow: 0 4px 12px rgba(30, 74, 107, 0.3);
+        }
+
+        /* 记录项 */
+        .record-item {
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(30, 74, 107, 0.1);
+            transition: all 0.2s;
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .record-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
+            border-color: rgba(30, 74, 107, 0.2);
+        }
+
+        .record-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .record-icon.detection {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        }
+
+        .record-icon.adversarial {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        .record-icon i {
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        .record-content {
+            flex: 1;
+        }
+
+        .record-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #0c2b3e;
+        }
+
+        .record-meta {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: #475569;
+        }
+
+        .meta-item i {
+            color: #1e4a6b;
+        }
+
+        .record-images {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .image-preview {
+            width: 120px;
+            height: 120px;
+            border-radius: 0.5rem;
+            object-fit: cover;
+            border: 2px solid rgba(30, 74, 107, 0.1);
+            transition: all 0.2s;
+        }
+
+        .image-preview:hover {
+            transform: scale(1.05);
+            border-color: #1e4a6b;
+        }
+
+        .delete-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .delete-btn:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #64748b;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: #475569;
+        }
+
+        .empty-state p {
+            font-size: 1rem;
+        }
+
+        /* 悬浮确认框样式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .confirm-modal {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .confirm-modal {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(145deg, #fee2e2, #fecaca);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            box-shadow: 0 8px 16px rgba(220, 38, 38, 0.2);
+        }
+
+        .modal-icon i {
+            font-size: 1.8rem;
+            color: #dc2626;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0c2b3e;
+            margin-bottom: 0.5rem;
+        }
+
+        .modal-message {
+            color: #475569;
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        .modal-record-id {
+            font-weight: 600;
+            color: #1e4a6b;
+            background: rgba(30, 74, 107, 0.1);
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            display: inline-block;
+            margin: 0 0.2rem;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 1rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-cancel {
+            background: rgba(203, 213, 225, 0.6);
+            color: #334155;
+        }
+
+        .btn-cancel:hover {
+            background: #cbd5e1;
+            transform: translateY(-2px);
+        }
+
+        .btn-confirm {
+            background: linear-gradient(145deg, #dc2626, #b91c1c);
+            color: white;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+        }
+
+        .btn-confirm:hover {
+            background: linear-gradient(145deg, #b91c1c, #991b1b);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(220, 38, 38, 0.4);
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            body { padding: 1rem; }
+            .header { flex-direction: column; gap: 1rem; text-align: center; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .record-item { flex-direction: column; }
+            .record-images { justify-content: center; }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .header h1 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <div class="header">
+            <h1><i class="fas fa-history"></i> 操作历史记录</h1>
+            <a href="/" class="back-btn">
+                <i class="fas fa-arrow-left"></i> 返回首页
+            </a>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.total_records }}</div>
+                <div class="stat-label">总记录数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.detection_count }}</div>
+                <div class="stat-label">目标检测</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.adversarial_count }}</div>
+                <div class="stat-label">伪装对抗</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.today_count }}</div>
+                <div class="stat-label">今日记录</div>
+            </div>
+        </div>
+
+        <!-- 记录列表 -->
+        <div class="records-container">
+            <div class="records-header">
+                <h2>操作记录详情</h2>
+                <div class="filter-tabs">
+                    <button class="filter-tab active" data-filter="all">全部</button>
+                    <button class="filter-tab" data-filter="detection">目标检测</button>
+                    <button class="filter-tab" data-filter="adversarial">伪装对抗</button>
+                </div>
+            </div>
+
+            <div id="records-list">
+                {% if records %}
+                    {% for record in records %}
+                    <div class="record-item" data-type="{{ record.operation_type }}">
+                        <div class="record-icon {{ record.operation_type }}">
+                            <i class="fas fa-{% if record.operation_type == 'detection' %}eye{% else %}user-secret{% endif %}"></i>
+                        </div>
+                        
+                        <div class="record-content">
+                            <h3 class="record-title">
+                                {% if record.operation_type == 'detection' %}目标检测{% else %}伪装对抗{% endif %}
+                            </h3>
+                            
+                            <div class="record-meta">
+                                <div class="meta-item">
+                                    <i class="fas fa-clock"></i>
+                                    <span>{{ record.timestamp.split('T')[0] }} {{ record.timestamp.split('T')[1][:8] }}</span>
+                                </div>
+                                
+                                {% if record.params.model_name %}
+                                <div class="meta-item">
+                                    <i class="fas fa-microchip"></i>
+                                    <span>{{ record.params.model_name }}</span>
+                                </div>
+                                {% endif %}
+                                
+                                {% if record.params.attack_type %}
+                                <div class="meta-item">
+                                    <i class="fas fa-bug"></i>
+                                    <span>{{ record.params.attack_type }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="record-images">
+                                <!-- 原始图片 -->
+                                {% if record.original_image %}
+                                <div>
+                                    <small>原始图片:</small><br>
+                                    <img src="/static/uploads/{{ record.original_image }}" 
+                                         alt="原始图片" 
+                                         class="image-preview"
+                                         onclick="window.open(this.src, '_blank')">
+                                </div>
+                                {% endif %}
+                                
+                                <!-- 结果图片 -->
+                                {% if record.result_image %}
+                                <div>
+                                    <small>结果图片:</small><br>
+                                    <img src="/static/results/{{ record.result_image }}" 
+                                         alt="结果图片" 
+                                         class="image-preview"
+                                         onclick="window.open(this.src, '_blank')">
+                                </div>
+                                {% endif %}
+                                
+                                <!-- 额外图片 -->
+                                {% for image_name in record.additional_images %}
+                                <div>
+                                    <small>中间步骤:</small><br>
+                                    {% if image_name.startswith('patch_') or image_name.startswith('adv_') %}
+                                    <img src="/static/results/{{ image_name }}" 
+                                         alt="中间步骤" 
+                                         class="image-preview"
+                                         onclick="window.open(this.src, '_blank')">
+                                    {% else %}
+                                    <img src="/static/uploads/{{ image_name }}" 
+                                         alt="中间步骤" 
+                                         class="image-preview"
+                                         onclick="window.open(this.src, '_blank')">
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <button class="delete-btn" onclick="showDeleteConfirm('{{ record.id }}')">
+                                <i class="fas fa-trash"></i> 删除记录
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-history"></i>
+                    <h3>暂无操作记录</h3>
+                    <p>快去进行目标检测或伪装对抗操作吧！</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 删除确认模态框 -->
+    <div class="modal-overlay" id="modalOverlay" onclick="closeDeleteConfirm()">
+        <div class="confirm-modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h2 class="modal-title">确认删除</h2>
+                <p class="modal-message">
+                    确定要删除记录 <span class="modal-record-id" id="recordIdDisplay"></span> 吗？
+                    <br><small style="color: #ef4444; font-weight: 500;">此操作将同时删除相关的图片文件，不可撤销！</small>
+                </p>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn btn-cancel" onclick="closeDeleteConfirm()">
+                    <i class="fas fa-times"></i> 取消
+                </button>
+                <button class="modal-btn btn-confirm" onclick="confirmDelete()">
+                    <i class="fas fa-check"></i> 确认删除
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 过滤功能
+        document.querySelectorAll('.filter-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                // 更新活动状态
+                document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                
+                const filterType = this.dataset.filter;
+                const records = document.querySelectorAll('.record-item');
+                
+                records.forEach(record => {
+                    if (filterType === 'all' || record.dataset.type === filterType) {
+                        record.style.display = 'flex';
+                    } else {
+                        record.style.display = 'none';
+                    }
+                });
+            });
+        });
+
+        // 存储当前要删除的记录信息
+        let currentDeleteRecord = null;
+
+        function showDeleteConfirm(recordId) {
+            currentDeleteRecord = recordId;
+            const overlay = document.getElementById('modalOverlay');
+            const recordDisplay = document.getElementById('recordIdDisplay');
+            
+            recordDisplay.textContent = recordId;
+            overlay.classList.add('active');
+        }
+
+        function closeDeleteConfirm() {
+            const overlay = document.getElementById('modalOverlay');
+            overlay.classList.remove('active');
+            currentDeleteRecord = null;
+        }
+
+        function confirmDelete() {
+            if (!currentDeleteRecord) return;
+            
+            const recordId = currentDeleteRecord;
+            closeDeleteConfirm();
+            
+            // 找到对应的删除按钮
+            const recordItem = document.querySelector(`[data-id="${recordId}"]`) || 
+                             [...document.querySelectorAll('.record-item')].find(item => 
+                                 item.querySelector('.delete-btn').onclick.toString().includes(recordId));
+            const deleteBtn = recordItem ? recordItem.querySelector('.delete-btn') : null;
+            
+            if (deleteBtn) {
+                const originalText = deleteBtn.innerHTML;
+                
+                // 显示加载状态
+                deleteBtn.innerHTML = '<span class="loading"></span> 删除中...';
+                deleteBtn.disabled = true;
+                
+                fetch(`/history/delete/${recordId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // 移除被删除的记录项
+                        if (recordItem) {
+                            recordItem.style.opacity = '0';
+                            recordItem.style.transform = 'translateX(-100%)';
+                            setTimeout(() => {
+                                recordItem.remove();
+                                updateStats();
+                            }, 300);
+                        }
+                        // 显示成功消息
+                        showMessage('记录删除成功！相关图片文件已一并清理。', 'success');
+                    } else {
+                        showMessage('删除失败：' + data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showMessage('删除过程中发生错误', 'error');
+                })
+                .finally(() => {
+                    // 恢复按钮状态
+                    if (deleteBtn) {
+                        deleteBtn.innerHTML = originalText;
+                        deleteBtn.disabled = false;
+                    }
+                });
+            }
+        }
+
+        function showMessage(message, type = 'info') {
+            // 创建消息元素
+            const messageEl = document.createElement('div');
+            messageEl.className = `message-toast ${type}`;
+            messageEl.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+                <span>${message}</span>
+            `;
+            
+            // 添加样式
+            Object.assign(messageEl.style, {
+                position: 'fixed',
+                top: '20px',
+                right: '20px',
+                backgroundColor: type === 'success' ? 'rgba(34, 197, 94, 0.9)' : 
+                               type === 'error' ? 'rgba(239, 68, 68, 0.9)' : 'rgba(59, 130, 246, 0.9)',
+                color: 'white',
+                padding: '1rem 1.5rem',
+                borderRadius: '12px',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                zIndex: '3000',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.8rem',
+                fontWeight: '500',
+                backdropFilter: 'blur(10px)',
+                transform: 'translateX(100%)',
+                transition: 'transform 0.3s ease'
+            });
+            
+            document.body.appendChild(messageEl);
+            
+            // 显示动画
+            setTimeout(() => {
+                messageEl.style.transform = 'translateX(0)';
+            }, 100);
+            
+            // 自动隐藏
+            setTimeout(() => {
+                messageEl.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    document.body.removeChild(messageEl);
+                }, 300);
+            }, 3000);
+        }
+
+        function updateStats() {
+            // 更新统计数字
+            const recordItems = document.querySelectorAll('.record-item');
+            const totalCount = recordItems.length;
+            const detectionCount = [...recordItems].filter(item => item.dataset.type === 'detection').length;
+            const adversarialCount = [...recordItems].filter(item => item.dataset.type === 'adversarial').length;
+            
+            // 更新统计卡片
+            const totalStat = document.querySelector('.stat-card:nth-child(1) .stat-value');
+            const detectionStat = document.querySelector('.stat-card:nth-child(2) .stat-value');
+            const adversarialStat = document.querySelector('.stat-card:nth-child(3) .stat-value');
+            
+            if (totalStat) totalStat.textContent = totalCount;
+            if (detectionStat) detectionStat.textContent = detectionCount;
+            if (adversarialStat) adversarialStat.textContent = adversarialCount;
+        }
+
+        // 为每个记录项添加data-id属性以便定位
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.record-item').forEach((item, index) => {
+                const deleteBtn = item.querySelector('.delete-btn');
+                if (deleteBtn) {
+                    const recordId = deleteBtn.onclick.toString().match(/'([^']+)'/)?.[1] || `record_${index}`;
+                    item.setAttribute('data-id', recordId);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

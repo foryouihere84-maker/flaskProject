@@ -17,9 +17,29 @@ def allowed_file(filename, allowed_extensions):
 # 可选：封装 secure_filename 以统一处理
 def safe_filename(filename):
     """
-    生成安全的文件名
+    生成安全的文件名 - 支持中文字符
     """
-    return secure_filename(filename)
+    import uuid
+    import os
+
+    # 获取文件扩展名
+    name, ext = os.path.splitext(filename)
+
+    # 如果文件名为空或只有扩展名，生成唯一标识符
+    if not name or name == ext:
+        unique_id = str(uuid.uuid4())[:8]
+        return f"upload_{unique_id}{ext.lower()}"
+
+    # 对文件名进行安全处理，但保留中文字符
+    import re
+    # 保留中文字符、英文字母、数字、常见符号
+    safe_name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', name)
+
+    # 限制长度
+    if len(safe_name) > 50:
+        safe_name = safe_name[:50]
+
+    return f"{safe_name}{ext.lower()}"
 
 
 def scan_model_files(model_dir, extension='.pt'):

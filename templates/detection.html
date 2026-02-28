@@ -351,6 +351,20 @@
             color: #1e4a6b;
             margin-bottom: 0.5rem;
         }
+        
+        /* 模型名称显示优化 - 保持与其他统计数字相同的字体大小 */
+        .model-name-display {
+            font-size: 2.5rem !important;
+            font-weight: 700;
+            color: #1e4a6b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 180px;
+            direction: rtl;
+            text-align: left;
+            margin-bottom: 0.5rem;
+        }
 
         .stat-label {
             color: #475569;
@@ -447,6 +461,55 @@
             font-size: 0.85rem;
             font-weight: 500;
             display: inline-block;
+        }
+        
+        /* 模型名称显示优化 - 文字溢出省略，悬浮显示全部 */
+        .model-name-display {
+            font-size: 2.5rem !important;
+            font-weight: 700;
+            color: #1e4a6b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            direction: ltr;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            padding: 0 0.5rem;
+            box-sizing: border-box;
+        }
+        
+        .model-name-display:hover {
+            overflow: visible;
+            white-space: normal;
+            max-width: 200px;
+            background: rgba(255,255,255,0.95);
+            padding: 0.8rem 1rem;
+            border-radius: 12px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+            position: absolute;
+            z-index: 100;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.2rem !important;
+            line-height: 1.4;
+            text-align: center;
+            min-width: 150px;
+            direction: ltr;
+        }
+        
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .model-name-display {
+                max-width: 100%;
+                font-size: 2rem !important; /* 移动端稍微减小但仍保持一致性 */
+            }
+            
+            .model-name-display:hover {
+                max-width: 180px;
+                font-size: 1rem !important;
+                min-width: 120px;
+            }
         }
 
         /* 置信度条 */
@@ -576,7 +639,7 @@
                 <div class="stat-label">平均置信度</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">{{ model_name }}</div>
+                <div class="stat-number model-name-display" title="{{ model_name }}">{{ model_name }}</div>
                 <div class="stat-label">使用模型</div>
             </div>
             <div class="stat-card">

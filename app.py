@@ -2,8 +2,11 @@ import os
 from flask import Flask, render_template
 from blueprints.detection import detection_bp
 import config
-from utils.file_utils import get_detection_models, get_adversarial_models
+from utils.file_utils import get_detection_models, get_adversarial_models, get_classification_models
 from blueprints.adversarial import adversarial_bp
+from blueprints.training import training_bp
+from blueprints.model_management import model_management_bp
+from blueprints.history import history_bp
 
 def init_models_config(app):
     """在应用上下文中初始化模型配置"""
@@ -11,6 +14,7 @@ def init_models_config(app):
         # 动态获取模型列表
         detection_models = get_detection_models()
         adversarial_models = get_adversarial_models()
+        classification_models = get_classification_models()
 
         # 构建检测模型配置
         detection_config = {}
@@ -20,13 +24,22 @@ def init_models_config(app):
                 'type': 'yolo'
             }
 
-        # 构建对抗攻击模型配置
+        # 构建对抗攻击模型配置（优先使用扫描到的模型文件）
         adversarial_config = {}
         for model_name in adversarial_models:
+            model_path = os.path.join('models', 'adversarial', f'{model_name}.pth')
             adversarial_config[model_name] = {
-                'path': os.path.join('models', 'adversarial', f'{model_name}.pth'),
+                'name': model_name,
+                'path': model_path,
                 'type': 'torchvision'
             }
+        # 如果没有扫描到模型文件，使用预训练模型
+        for model_name in classification_models:
+            if model_name not in adversarial_config:
+                adversarial_config[model_name] = {
+                    'name': model_name,
+                    'type': 'torchvision'
+                }
 
         # 更新应用配置
         app.config['MODELS'] = {
@@ -44,6 +57,9 @@ def create_app(config_class='config.Config'):
 
     # 初始化配置
     app.config.from_object(config_class)
+    
+    # 设置Flask secret key
+    app.secret_key = 'your-secret-key-here-change-in-production'
 
     # 在应用上下文中初始化模型配置
     init_models_config(app)
@@ -55,11 +71,18 @@ def create_app(config_class='config.Config'):
     # 注册蓝图
     app.register_blueprint(detection_bp)
     app.register_blueprint(adversarial_bp)
+    app.register_blueprint(training_bp)
+    app.register_blueprint(model_management_bp)
+    app.register_blueprint(history_bp)
 
     # 添加模板上下文处理器
     @app.context_processor
     def inject_detection_models():
         return dict(get_detection_models=get_detection_models)
+    
+    @app.context_processor
+    def inject_adversarial_models():
+        return dict(get_adversarial_models=get_adversarial_models)
 
     @app.route('/')
     def home():

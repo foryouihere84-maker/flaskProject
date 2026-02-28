@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模型训练 · YOLO 智能视觉平台</title>
+    <!-- Google Fonts - Inter 字体 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <!-- Font Awesome 6 (免费) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+            
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(145deg, #f6f9fc 0%, #e9f2f9 100%);
+            min-height: 100vh;
+            color: #1e293b;
+            line-height: 1.5;
+            padding: 2rem 1.5rem;
+        }
+
+        /* 主容器 */
+        .training-container {
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+
+        /* 导航/面包屑 */
+        .breadcrumb {
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .breadcrumb a {
+            color: #2c5f8a;
+            text-decoration: none;
+            font-weight: 500;
+            background: rgba(255,255,255,0.5);
+            backdrop-filter: blur(4px);
+            padding: 0.4rem 1rem;
+            border-radius: 40px;
+            border: 1px solid rgba(255,255,255,0.6);
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .breadcrumb a:hover {
+            background: rgba(255,255,255,0.9);
+            border-color: #1e4a6b;
+            color: #0c2b3e;
+        }
+
+        .breadcrumb span {
+            color: #475569;
+        }
+
+        /* 标题区域 */
+        .page-header {
+            margin-bottom: 3rem;
+            text-align: center;
+        }
+
+        .page-header h1 {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 700;
+            background: linear-gradient(135deg, #0f2b3d, #1b4a6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .page-header .subtitle {
+            color: #475569;
+            font-size: 1.1rem;
+            background: rgba(255,255,255,0.4);
+            backdrop-filter: blur(4px);
+            padding: 0.5rem 2rem;
+            border-radius: 60px;
+            display: inline-block;
+        }
+
+        /* 卡片通用样式 */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.02);
+            padding: 2rem;
+        }
+
+        /* 表单组 */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: #1e3b4f;
+            font-size: 1.1rem;
+        }
+
+        .form-label i {
+            margin-right: 0.5rem;
+            color: #2c5f8a;
+        }
+
+        /* 模型选择下拉框 */
+        .model-select {
+            width: 100%;
+            padding: 0.9rem 1.5rem;
+            border-radius: 60px;
+            border: 1px solid rgba(30, 74, 107, 0.2);
+            background: rgba(255,255,255,0.8);
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            color: #1e293b;
+            outline: none;
+            transition: all 0.2s;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%231e4a6b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1.5rem center;
+            background-size: 1rem;
+        }
+
+        .model-select:hover, .model-select:focus {
+            border-color: #1e4a6b;
+            background-color: white;
+            box-shadow: 0 4px 12px rgba(30,74,107,0.1);
+        }
+
+        /* 文件上传区域 */
+        .file-upload-area {
+            border: 2px dashed rgba(30, 74, 107, 0.3);
+            border-radius: 2rem;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            background: rgba(255,255,255,0.4);
+            transition: all 0.2s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .file-upload-area:hover {
+            border-color: #1e4a6b;
+            background: rgba(255,255,255,0.7);
+        }
+
+        .file-upload-area.dragover {
+            border-color: #1e4a6b;
+            background: rgba(255,255,255,0.8);
+            transform: scale(1.02);
+        }
+
+        .file-upload-area i {
+            font-size: 3rem;
+            color: #1e4a6b;
+            margin-bottom: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .file-upload-area .upload-text {
+            font-weight: 500;
+            color: #1e4a6b;
+        }
+
+        .file-upload-area .upload-hint {
+            font-size: 0.9rem;
+            color: #57758c;
+            margin-top: 0.5rem;
+        }
+
+        /* 隐藏文件输入 */
+        .hidden {
+            display: none;
+        }
+
+        /* 文件信息显示 */
+        .file-info {
+            margin-top: 0.5rem;
+            color: #2c5f8a;
+            font-size: 0.9rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* 进度条 */
+        .progress-container {
+            margin: 2rem 0;
+        }
+
+        .progress-bar {
+            height: 12px;
+            background: rgba(255,255,255,0.6);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+            border: 1px solid rgba(30, 74, 107, 0.1);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #1e4a6b, #2c5f8a);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            font-weight: 500;
+            color: #1e3b4f;
+        }
+
+        /* 结果区域 */
+        .result {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            display: none;
+            backdrop-filter: blur(4px);
+        }
+
+        .result.success {
+            background: rgba(212, 237, 218, 0.8);
+            border: 1px solid rgba(195, 230, 203, 0.5);
+            color: #155724;
+        }
+
+        .result.error {
+            background: rgba(248, 215, 218, 0.8);
+            border: 1px solid rgba(245, 198, 203, 0.5);
+            color: #721c24;
+        }
+
+        /* 返回链接 */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+            color: #2c5f8a;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 40px;
+            background: rgba(255,255,255,0.5);
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+        }
+
+        .back-link:hover {
+            background: rgba(255,255,255,0.8);
+            color: #0c2b3e;
+            text-decoration: none;
+        }
+
+        /* 主按钮 */
+        .btn-primary {
+            background: linear-gradient(135deg, #1e4a6b 0%, #2c5f8a 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(30, 74, 107, 0.2);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(30, 74, 107, 0.3);
+            background: linear-gradient(135deg, #0c2b3e 0%, #1e4a6b 100%);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 1.5rem;
+            color: #4facfe;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .back-link i {
+            margin-right: 0.5rem;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        /* 参数配置样式 */
+        .form-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        
+        .form-section h3 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #4facfe;
+            padding-bottom: 0.5rem;
+        }
+        
+        .param-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .param-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .param-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #34495e;
+        }
+        
+        .param-input {
+            width: 100%;
+            padding: 0.7rem;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            transition: border-color 0.3s;
+        }
+        
+        .param-input:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+        
+        .param-group small {
+            display: block;
+            margin-top: 0.3rem;
+            color: #7f8c8d;
+            font-size: 0.85rem;
+        }
+        
+        .param-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 0.5rem;
+        }
+        
+        /* GPU环境检测样式 */
+        .gpu-info, .gpu-warning {
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+        }
+        
+        .gpu-info small {
+            color: #27ae60 !important;
+            font-weight: 500;
+        }
+        
+        .gpu-warning small {
+            color: #e74c3c !important;
+            font-weight: 500;
+        }
+        
+        select:disabled {
+            background-color: #f5f5f5;
+            color: #999;
+            cursor: not-allowed;
+        }
+        
+        option:disabled {
+            color: #ccc;
+            background-color: #f9f9f9;
+        }
+        
+        /* 数据格式说明样式 */
+        .data-format-guide {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            margin-top: 1.5rem;
+            overflow: hidden;
+        }
+        
+        .guide-header {
+            background: #4facfe;
+            color: white;
+            padding: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .guide-header i {
+            font-size: 1.2rem;
+        }
+        
+        .guide-content {
+            padding: 1.5rem;
+        }
+        
+        .guide-content p {
+            margin-bottom: 1rem;
+            color: #495057;
+            font-size: 0.95rem;
+        }
+        
+        .format-structure {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+            overflow-x: auto;
+        }
+        
+        .format-structure pre {
+            margin: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .format-structure code {
+            background: transparent;
+            padding: 0;
+        }
+        
+        .format-notes {
+            margin-top: 1rem;
+        }
+        
+        .format-notes h4 {
+            color: #2c3e50;
+            margin-bottom: 0.8rem;
+            font-size: 1.1rem;
+            border-bottom: 2px solid #4facfe;
+            padding-bottom: 0.3rem;
+        }
+        
+        .format-notes ul {
+            padding-left: 1.5rem;
+        }
+        
+        .format-notes li {
+            margin-bottom: 0.5rem;
+            color: #495057;
+            line-height: 1.5;
+        }
+        
+        .format-notes strong {
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <div class="training-container">
+        <!-- 面包屑导航 -->
+        <div class="breadcrumb">
+            <a href="/">
+                <i class="fas fa-home"></i>
+                首页
+            </a>
+            <span>/</span>
+            <span>模型训练</span>
+        </div>
+        
+        <!-- 页面标题 -->
+        <div class="page-header">
+            <h1><i class="fas fa-robot"></i> 模型训练</h1>
+            <div class="subtitle">选择基础模型并上传训练数据来微调您的检测模型</div>
+        </div>
+        
+        <!-- 主要内容卡片 -->
+        <div class="glass-card">
+            <form id="trainingForm">
+                <div class="form-group">
+                    <label class="form-label" for="modelSelect"><i class="fas fa-layer-group"></i> 选择基础模型</label>
+                    <select id="modelSelect" name="model_name" class="model-select" required>
+                        <option value="">请选择要训练的模型...</option>
+                        {% for model in models %}
+                        <option value="{{ model }}">{{ model }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label"><i class="fas fa-file-archive"></i> 上传训练数据</label>
+                    <div class="file-upload-area" id="uploadArea">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <div class="upload-text">点击选择或拖拽ZIP文件到这里</div>
+                        <div class="upload-hint">支持包含图片文件的ZIP压缩包</div>
+                        <input type="file" id="datasetInput" name="dataset" accept=".zip" class="hidden" required>
+                    </div>
+                    <div id="fileInfo" class="file-info" style="display: none;"></div>
+                    
+                    <!-- 数据格式说明 -->
+                    <div class="data-format-guide">
+                        <div class="guide-header">
+                            <i class="fas fa-info-circle"></i>
+                            <span>训练数据格式要求</span>
+                        </div>
+                        <div class="guide-content">
+                            <p>请按照以下目录结构组织您的数据并打包为ZIP文件：</p>
+                            <div class="format-structure">
+                                <pre><code>dataset/
+├── images/
+│   ├── train/
+│   │   ├── img1.jpg
+│   │   ├── img2.png
+│   │   └── ...
+│   └── val/
+│       ├── img3.jpg
+│       ├── img4.png
+│       └── ...
+└── labels/
+    ├── train/
+    │   ├── img1.txt
+    │   ├── img2.txt
+    │   └── ...
+    └── val/
+        ├── img3.txt
+        ├── img4.txt
+        └── ...</code></pre>
+                            </div>
+                            <div class="format-notes">
+                                <h4>格式说明：</h4>
+                                <ul>
+                                    <li><strong>images/train/</strong>: 训练集图片文件（支持jpg/jpeg/png/bmp/tiff格式）</li>
+                                    <li><strong>images/val/</strong>: 验证集图片文件</li>
+                                    <li><strong>labels/train/</strong>: 训练集标签文件（YOLO格式.txt文件）</li>
+                                    <li><strong>labels/val/</strong>: 验证集标签文件</li>
+                                    <li>图片文件名需与对应标签文件名保持一致</li>
+                                    <li>标签文件格式：每行一个目标，格式为 &lt;class_id&gt; &lt;x_center&gt; &lt;y_center&gt; &lt;width&gt; &lt;height&gt;</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 训练参数配置 -->
+                <div class="form-section">
+                    <h3><i class="fas fa-sliders-h"></i> 训练参数配置</h3>
+                    
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label for="epochs">训练轮数 (Epochs)</label>
+                            <input type="number" id="epochs" name="epochs" value="10" min="1" max="100" class="param-input">
+                            <small>推荐值: 5-20</small>
+                        </div>
+                        
+                        <div class="param-group">
+                            <label for="batch">批次大小 (Batch Size)</label>
+                            <input type="number" id="batch" name="batch" value="16" min="1" max="64" class="param-input">
+                            <small>推荐值: 8-32</small>
+                        </div>
+                    </div>
+                    
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label for="imgsz">图像尺寸</label>
+                            <select id="imgsz" name="imgsz" class="param-input">
+                                <option value="320">320×320</option>
+                                <option value="416">416×416</option>
+                                <option value="640" selected>640×640</option>
+                                <option value="1024">1024×1024</option>
+                            </select>
+                        </div>
+                        
+                        <div class="param-group">
+                            <label for="patience">早停耐心值</label>
+                            <input type="number" id="patience" name="patience" value="3" min="1" max="20" class="param-input">
+                            <small>无改善时停止训练的轮数</small>
+                        </div>
+                    </div>
+                    
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label for="device">训练设备</label>
+                            <select id="device" name="device" class="param-input">
+                                <option value="cpu" selected>CPU</option>
+                                <option value="0">GPU 0</option>
+                                <option value="1">GPU 1</option>
+                            </select>
+                        </div>
+                        
+                        <div class="param-group">
+                            <label for="optimizer">优化器</label>
+                            <select id="optimizer" name="optimizer" class="param-input">
+                                <option value="SGD" selected>SGD</option>
+                                <option value="Adam">Adam</option>
+                                <option value="AdamW">AdamW</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label for="lr0">初始学习率</label>
+                            <input type="number" id="lr0" name="lr0" value="0.001" step="0.0001" min="0.0001" max="0.1" class="param-input">
+                        </div>
+                        
+                        <div class="param-group">
+                            <label for="lrf">最终学习率</label>
+                            <input type="number" id="lrf" name="lrf" value="0.01" step="0.001" min="0.001" max="0.1" class="param-input">
+                        </div>
+                    </div>
+                    
+                    <div class="param-row">
+                        <div class="param-group">
+                            <label for="weight_decay">权重衰减</label>
+                            <input type="number" id="weight_decay" name="weight_decay" value="0.0005" step="0.0001" min="0" max="0.1" class="param-input">
+                        </div>
+                        
+                        <div class="param-group">
+                            <label for="warmup_epochs">预热轮数</label>
+                            <input type="number" id="warmup_epochs" name="warmup_epochs" value="1" min="0" max="10" class="param-input">
+                        </div>
+                    </div>
+                    
+                    <div class="param-row">
+                        <div class="param-group" style="flex: 1;">
+                            <label for="freeze">冻结层数</label>
+                            <input type="text" id="freeze" name="freeze" value="0,1,2,3,4,5,6,7,8,9" class="param-input">
+                            <small>用逗号分隔的层数，如: 0,1,2,3,4</small>
+                        </div>
+                    </div>
+                    
+                    <div class="param-row">
+                        <div class="param-group" style="flex: 1;">
+                            <label>
+                                <input type="checkbox" id="cache" name="cache" value="true"> 启用数据缓存
+                            </label>
+                            <small>缓存数据到内存以加快训练速度</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" id="trainBtn" class="btn-primary">
+                    <i class="fas fa-cogs"></i> 开始训练
+                </button>
+            </form>
+            
+            <div class="progress-container" id="progressContainer" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">正在上传数据集...</div>
+            </div>
+            
+            <div class="result" id="resultMessage"></div>
+            
+            <a href="/detection/" class="back-link">
+                <i class="fas fa-arrow-left"></i> 返回检测页面
+            </a>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('trainingForm');
+            const uploadArea = document.getElementById('uploadArea');
+            const datasetInput = document.getElementById('datasetInput');
+            const fileInfo = document.getElementById('fileInfo');
+            const trainBtn = document.getElementById('trainBtn');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const resultMessage = document.getElementById('resultMessage');
+            
+            // 环境检测
+            async function checkEnvironment() {
+                try {
+                    const response = await fetch('/training/check_cuda');
+                    const result = await response.json();
+                    
+                    const deviceSelect = document.getElementById('device');
+                    const gpuOptions = deviceSelect.querySelectorAll('option[value="0"], option[value="1"]');
+                    
+                    if (result.cuda_available && result.device_count > 0) {
+                        // CUDA可用，启用GPU选项
+                        gpuOptions.forEach(option => {
+                            option.disabled = false;
+                            option.textContent = `${option.value === '0' ? 'GPU 0' : 'GPU 1'}: ${result.devices[parseInt(option.value)]?.name || 'Unknown'}`;
+                        });
+                        
+                        // 显示GPU信息
+                        const gpuInfo = document.createElement('div');
+                        gpuInfo.className = 'gpu-info';
+                        gpuInfo.innerHTML = `
+                            <small style="color: #27ae60;">✓ 检测到 ${result.device_count} 个CUDA设备</small>
+                        `;
+                        deviceSelect.parentNode.appendChild(gpuInfo);
+                    } else {
+                        // CUDA不可用，禁用GPU选项
+                        gpuOptions.forEach(option => {
+                            option.disabled = true;
+                            option.textContent = option.value === '0' ? 'GPU 0 (不可用)' : 'GPU 1 (不可用)';
+                        });
+                        
+                        // 显示提示信息
+                        const warningInfo = document.createElement('div');
+                        warningInfo.className = 'gpu-warning';
+                        warningInfo.innerHTML = `
+                            <small style="color: #e74c3c;">⚠ 未检测到CUDA设备，将使用CPU训练</small>
+                        `;
+                        deviceSelect.parentNode.appendChild(warningInfo);
+                        
+                        // 默认选择CPU
+                        deviceSelect.value = 'cpu';
+                    }
+                } catch (error) {
+                    console.error('Environment check failed:', error);
+                    // 出错时默认禁用GPU选项
+                    const deviceSelect = document.getElementById('device');
+                    const gpuOptions = deviceSelect.querySelectorAll('option[value="0"], option[value="1"]');
+                    gpuOptions.forEach(option => {
+                        option.disabled = true;
+                        option.textContent = option.value === '0' ? 'GPU 0 (检查失败)' : 'GPU 1 (检查失败)';
+                    });
+                    deviceSelect.value = 'cpu';
+                }
+            }
+            
+            // 页面加载时检查环境
+            checkEnvironment();
+            
+            // 文件上传区域交互
+            uploadArea.addEventListener('click', () => {
+                datasetInput.click();
+            });
+            
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.name.toLowerCase().endsWith('.zip')) {
+                        datasetInput.files = files;
+                        showFileInfo(file);
+                    } else {
+                        showMessage('请上传ZIP格式的压缩包', 'error');
+                    }
+                }
+            });
+            
+            datasetInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    showFileInfo(e.target.files[0]);
+                }
+            });
+            
+            function showFileInfo(file) {
+                fileInfo.style.display = 'block';
+                fileInfo.textContent = `已选择: ${file.name} (${formatFileSize(file.size)})`;
+            }
+            
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+            
+            // 表单提交处理
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const modelName = document.getElementById('modelSelect').value;
+                const datasetFile = datasetInput.files[0];
+                
+                if (!modelName) {
+                    showMessage('请选择基础模型', 'error');
+                    return;
+                }
+                
+                if (!datasetFile) {
+                    showMessage('请上传训练数据集', 'error');
+                    return;
+                }
+                
+                try {
+                    // 1. 上传数据集
+                    showProgress(20, '正在上传数据集...');
+                    trainBtn.disabled = true;
+                    trainBtn.innerHTML = '<span class="spinner"></span> 正在上传...';
+                    
+                    const formData = new FormData();
+                    formData.append('dataset', datasetFile);
+                    
+                    const uploadResponse = await fetch('/training/upload_dataset', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const uploadResult = await uploadResponse.json();
+                    
+                    if (!uploadResult.success) {
+                        throw new Error(uploadResult.error);
+                    }
+                    
+                    showProgress(40, '数据集上传完成');
+                    
+                    // 2. 开始训练
+                    showProgress(50, '正在启动训练...');
+                    trainBtn.innerHTML = '<span class="spinner"></span> 正在训练...';
+                    
+                    const trainFormData = new FormData();
+                    trainFormData.append('model_name', modelName);
+                    trainFormData.append('dataset_path', uploadResult.dataset_path);
+                    
+                    // 添加训练参数
+                    trainFormData.append('epochs', document.getElementById('epochs').value);
+                    trainFormData.append('batch', document.getElementById('batch').value);
+                    trainFormData.append('imgsz', document.getElementById('imgsz').value);
+                    trainFormData.append('patience', document.getElementById('patience').value);
+                    trainFormData.append('device', document.getElementById('device').value);
+                    trainFormData.append('optimizer', document.getElementById('optimizer').value);
+                    trainFormData.append('lr0', document.getElementById('lr0').value);
+                    trainFormData.append('lrf', document.getElementById('lrf').value);
+                    trainFormData.append('weight_decay', document.getElementById('weight_decay').value);
+                    trainFormData.append('warmup_epochs', document.getElementById('warmup_epochs').value);
+                    trainFormData.append('freeze', document.getElementById('freeze').value);
+                    
+                    // 检查复选框状态
+                    if (document.getElementById('cache').checked) {
+                        trainFormData.append('cache', 'true');
+                    } else {
+                        trainFormData.append('cache', 'false');
+                    }
+                    
+                    const trainResponse = await fetch('/training/train', {
+                        method: 'POST',
+                        body: trainFormData
+                    });
+                    
+                    const trainResult = await trainResponse.json();
+                    
+                    if (!trainResult.success) {
+                        throw new Error(trainResult.error);
+                    }
+                    
+                    showProgress(100, '训练完成！');
+                    trainBtn.innerHTML = '<i class="fas fa-check"></i> 训练完成';
+                    
+                    // 显示成功消息
+                    showMessage(`
+                        <h3><i class="fas fa-check-circle"></i> 训练成功！</h3>
+                        <p><strong>新模型名称:</strong> ${trainResult.new_model_name}</p>
+                        <p><strong>基础模型:</strong> ${trainResult.training_info.base_model}</p>
+                        <p><strong>训练轮数:</strong> ${trainResult.training_info.epochs_completed}</p>
+                        <p style="margin-top: 1rem;">新模型已保存，您可以在检测页面中选择使用。</p>
+                    `, 'success');
+                    
+                } catch (error) {
+                    console.error('Training error:', error);
+                    showMessage(`训练失败: ${error.message}`, 'error');
+                    resetForm();
+                }
+            });
+            
+            function showProgress(percent, text) {
+                progressContainer.style.display = 'block';
+                progressFill.style.width = percent + '%';
+                progressText.textContent = text;
+            }
+            
+            function showMessage(content, type) {
+                resultMessage.style.display = 'block';
+                resultMessage.className = `result ${type}`;
+                resultMessage.innerHTML = content;
+            }
+            
+            function resetForm() {
+                trainBtn.disabled = false;
+                trainBtn.innerHTML = '<i class="fas fa-cogs"></i> 开始训练';
+                progressContainer.style.display = 'none';
+                progressFill.style.width = '0%';
+            }
+        });
+    </script>
+</body>
+</html>
